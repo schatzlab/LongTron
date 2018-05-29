@@ -6,7 +6,8 @@
 #4: total # of junctions in Target
 
 #first filter lr jxs at given read count threshold
-cat $1 | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); next if($f[3] < '${2}'); print "$f\n";' | cut -f 1,2,3 | sort -u > lr.filtered.${2}
+#cat $1 | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); next if($f[3] < '${2}'); print "$f\n";' | cut -f 1,2,3 | sort -u > lr.filtered.${2}
+ln -s ../lr_filtered/lr.filtered.${2}
 lr=`wc -l lr.filtered.${2} | cut -d" " -f 1`
 
 comm -1 -2 lr.filtered.${2} $3 | wc -l | perl -ne 'chomp; $s=$_; $lr_per=$s/'${lr}'; $snap_per=$s/'${4}'; print "'${2}'\t1\t$s\t'${lr}'\t'${4}'\t"; printf("%.3f\t%.3f\n",$lr_per,$snap_per);' 
