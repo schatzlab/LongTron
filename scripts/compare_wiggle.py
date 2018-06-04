@@ -13,6 +13,8 @@ cols['refseq']=[7,11]
 cols['gtex']=[12,16]
 #sra
 cols['sra']=[17,21]
+#pacbio
+cols['pacbio']=[22,26]
 
 filters = [1,2,5,7,10,15,20,50,100,500,1000]
 

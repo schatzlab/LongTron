@@ -3,6 +3,9 @@ samtools view -F 2308 NA12878-DirectRNA.pass.dedup.NoU.fastq.hg38.minimap2.sorte
 #new version with strand
 samtools view -F 2308 NA12878-DirectRNA.pass.dedup.NoU.fastq.hg38.minimap2.sorted.bam | cut -f 2,3,4,6 | perl -ne 'BEGIN { $b=0; } chomp; ($flag,$c,$s,$f)=split(/\t/,$_); my $o = (int($flag) & 0x10)?'-':'+'; $r=$s; while($f=~/(\d+)([NMD=X])/cg) { $i=$1; $t=$2; if($t eq "N") { print "$c\t$r\t".($r+$i-1)."\t$b\t$o\n"; } $r+=$i; } $b++;' | sort -k1,1 -k2,2n -k3,3n -k4,4 | perl -ne 'chomp; $f=$_; ($c,$s,$e,$o,$sid)=split(/\t/,$f); if($pc && $pc eq $c && $ps == $s && $pe == $e && $po == $o) { $sids.=",$sid"; $nsids++; next; } elsif($pc) { print "$pc\t$ps\t$pe\t$po\t$nsids\t$sids\n"; } $nsids=1; $pc=$c; $ps=$s; $pe=$e; $po=$o; $sids=$sid; END { if($pc) { print "$pc\t$ps\t$pe\t$po\t$nsids\t$sids\n"; } }' > NA12878.bam.perl.introns.merged.sorted2
 
+
+samtools view -F 2308 ../source_files/NA12878-DirectRNA.pass.dedup.NoU.fastq.hg38.minimap2.sorted.bam | cut -f 10 | perl -ne 'BEGIN { $b=0; } chomp; ($seq)=split(/\t/,$_); print "r$b\t".length($seq)."\n"; $b++;' > ./source_files/NA12878-DirectRNA.bam.read_lengths
+
 #compare jxs with GTEx
 zcat /data/snaptron_data/gtex/junctions.bgz | cut -f2,3,4 | sort -u > gtex_junctions.tsv
 
@@ -39,6 +42,9 @@ cat ../source_files/NA12878.bam.juncs | perl -ne 'BEGIN { open(IN,"<wiggle.lr.re
 #add annotation/strand info from targets to wiggle base files (run *after* the above)
 cat gtex_junctions.tsv | perl -ne 'BEGIN { open(IN,"<wiggle.lr.gtex.intersect.single.strand"); %h; while($line=<IN>) { chomp($line); ($c1,$s1,$e1,$o1,$nr1,$c2,$s2,$e2,$nr2)=split(/\t/,$line); push(@{$h{join("\t",($c2,$s2,$e2))}},[$c1,$s1,$e1,$o1,$nr1,$nr2]); } close(IN); } chomp; $f=$_; ($c,$s,$e,$o,$a1,$a2,$a3,$ns,$nr)=split(/\t/,$f); $k=join("\t",($c,$s,$e)); $a_=$h{$k}; if($a_) { for $a (@$a_) { @a=@$a; $nr2=pop(@a); print "".join("\t",@a)."\t$c\t$s\t$e\t$o\t$a1\t$a2\t$a3\t$nr2\n";}}' > wiggle.lr.gtex.intersect.single.strand.annots
 
+#different version for pacbio (need to use the nr that comes from the source target file rather than the intersection, since the coordinates could be duplicated across strands and need to be printed twice with different NRs)
+cat pacbio_junctions.tsv | perl -ne 'BEGIN { open(IN,"<wiggle.lr.pacbio.intersect.single.strand"); %h; while($line=<IN>) { chomp($line); ($c1,$s1,$e1,$o1,$nr1,$c2,$s2,$e2,$nr2)=split(/\t/,$line); push(@{$h{join("\t",($c2,$s2,$e2))}},[$c1,$s1,$e1,$o1,$nr1,$nr2]); } close(IN); } chomp; $f=$_; ($c,$s,$e,$o,$a1,$a2,$a3,$ns,$nr)=split(/\t/,$f); $k=join("\t",($c,$s,$e)); $a_=$h{$k}; if($a_) { for $a (@$a_) { @a=@$a; $nr2=pop(@a); print "".join("\t",@a)."\t$c\t$s\t$e\t$o\t$a1\t$a2\t$a3\t$nr\n";}}' > wiggle.lr.pacbio.intersect.single.strand.annots
+
 
 #check strand agreement in wiggle base files
 cat wiggle.lr.short.intersect.single.strand.annots | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); if($f[3] ne $f[8]) { print "$f\n"; }' | wc -l
@@ -46,3 +52,26 @@ cat wiggle.lr.short.intersect.single.strand.annots | perl -ne 'chomp; $f=$_; @f=
 
 #create full matrix of junctions with 4 comparison target sets
 cat original_plus_4_wiggle.juncs.sorted | perl -ne 'BEGIN { $fa="_full"; $pa1="_1_ss"; $pa2="_2_ss"; print "chr\tstart\tend\tlr_strand\tlr_nr\tshort_strand\tshort$fa\tshort$pa1\tshort$pa2\tshort_nr\trefseq_strand\trefseq$fa\trefseq$pa1\trefseq$pa2\trefseq_nr\tgtex_strand\tgtex$fa\tgtex$pa1\tgtex$pa2\tgtex_nr\tsra_strand\tsra$fa\tsra$pa1\tsra$pa2\tsra_nr\n"; } chomp; $f=$_; $f=~tr/\+\-/10/; @f=split(/\t/,$f); ($c,$s,$e,$o,$nr)=@f; if($pc && ($pc ne $c || $ps != $s || $pe != $e)) { print "$pc\t$ps\t$pe\t$po\t$pnr"; for $t ("h","r","g","s") { if(!$h{$t}) { print "\t$po\t0\t0\t0\t0"; } else { print "\t".join("\t", @{$h{$t}}); } } print "\n";  %h=(); } $pc=$c; $ps=$s; $pe=$e; $po=$o; $pnr=$nr; if($f[5] ne "a") { local @k=splice(@f,8,5); $h{$f[8]}=\@k; } END { if($pc) { print "$pc\t$ps\t$pe\t$po\t$pnr"; for $t ("h","r","g","s") { if(!$h{$t}) { print "\t$po\t0\t0\t0\t0"; } else { print "\t".join("\t", @{$h{$t}}); } } print "\n"; }} ' > original_plus_4_wiggle.juncs.sorted.full
+
+cat original_plus_4_wiggle.juncs.sorted.full | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); if($f[4] >= 1000 && $f[9]==0 && $f[14]==0 && $f[19]==0 && $f[24]==0) { print "$f\n";}' > original_plus_4_wiggle.juncs.sorted.full.novel_1k
+
+cat original_plus_4_wiggle.juncs.sorted.full | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); if($f[4] >= 1000 && $f[9]>0 && $f[14]==0 && $f[19]==0 && $f[24]==0) { print "$f\n";}' > original_plus_4_wiggle.juncs.sorted.full.gtex_sra_novel_1k
+
+cat original_plus_4_wiggle.juncs.sorted.full | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); if($f[4] >= 1000 && ($f[9]>0 || $f[14]>0 || $f[19]>0) && $f[24]==0) { print "$f\n";}' > original_plus_4_wiggle.juncs.sorted.full.sra_novel_1k
+
+
+python ./sweep.py --db-file original_plus_4_wiggle.juncs.sorted.full.novel_20.coords --query-file recount_hg38_gencode_disjoint_exons.tsv.gz.collapsed --db-start-col 0 --q-start-col 1 --no-gzip > original_plus_4_wiggle.juncs.sorted.full.novel_20.coords.overlapping_exons
+
+cat original_plus_4_wiggle.juncs.sorted.full.novel_20.coords.overlapping_exons | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e)=($f[1],$f[2],$f[3]); for($i=5;$i<scalar(@f);$i++) { ($c2,$s2,$e2)=split(/\|\|\|/,$f[$i]); print "$c2\t$s2\t$e2\n";}' | sort -u > o1
+fgrep -v -f o1 original_plus_4_wiggle.juncs.sorted.full.novel_20.coords > o2
+
+python ./sweep.py --db-start-col 1 --db-file <(zcat /data/snaptron_data/gene_annotation_hg38/gencodev25_recount_genes.tsv.gz) --query-file o2 --q-start-col 0 --no-gzip --db-header
+
+#remove anything strictly contained
+cat original_plus_4_wiggle.juncs.sorted.full.novel_20.coords.overlapping_exons | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e)=($f[1],$f[2],$f[3]); for($i=5;$i<scalar(@f);$i++) { ($c2,$s2,$e2)=split(/\|\|\|/,$f[$i]); if($s2<$s && $e2>$e) { print "$c2\t$s2\t$e2\n";}}' | sort -u > o1
+
+
+#add pacbio
+sort -k1,1 -k2,2n -k3,3n -k4,4 -k5,5n -k6,6 original_plus_5_wiggle.juncs > original_plus_5_wiggle.juncs.sorted
+#create full matrix of junctions with 4 comparison target sets
+cat original_plus_5_wiggle.juncs.sorted | perl -ne 'BEGIN { $fa="_full"; $pa1="_1_ss"; $pa2="_2_ss"; print "chr\tstart\tend\tlr_strand\tlr_nr\tshort_strand\tshort$fa\tshort$pa1\tshort$pa2\tshort_nr\trefseq_strand\trefseq$fa\trefseq$pa1\trefseq$pa2\trefseq_nr\tgtex_strand\tgtex$fa\tgtex$pa1\tgtex$pa2\tgtex_nr\tsra_strand\tsra$fa\tsra$pa1\tsra$pa2\tsra_nr\tpacbio_strand\tpacbio$fa\tpacbio$pa1\tpacbio$pa2\tpacbio_nr\n"; } chomp; $f=$_; $f=~tr/\+\-/10/; @f=split(/\t/,$f); ($c,$s,$e,$o,$nr)=@f; if($pc && ($pc ne $c || $ps != $s || $pe != $e)) { print "$pc\t$ps\t$pe\t$po\t$pnr"; for $t ("h","r","g","s","p") { if(!$h{$t}) { print "\t$po\t0\t0\t0\t0"; } else { print "\t".join("\t", @{$h{$t}}); } } print "\n";  %h=(); } $pc=$c; $ps=$s; $pe=$e; $po=$o; $pnr=$nr; if($f[5] ne "a") { local @k=splice(@f,8,5); $h{$f[8]}=\@k; } END { if($pc) { print "$pc\t$ps\t$pe\t$po\t$pnr"; for $t ("h","r","g","s") { if(!$h{$t}) { print "\t$po\t0\t0\t0\t0"; } else { print "\t".join("\t", @{$h{$t}}); } } print "\n"; }} ' > original_plus_5_wiggle.juncs.sorted.full
