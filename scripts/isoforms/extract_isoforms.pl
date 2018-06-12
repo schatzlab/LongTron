@@ -1,4 +1,4 @@
-#!/bin/perl
+#!/usr/bin/perl
 #for each long read, parse CIGAR to create a read-derived "isoform"
 #where ends are assumed to be "fuzzy"
 #primarily interested in order and location of junctions
