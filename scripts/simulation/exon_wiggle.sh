@@ -20,7 +20,7 @@ cat $ANNOT_EXONS | perl -ne 'chomp; ($c,$s,$e)=split(/\t/,$_); $s--; print "$c\t
 #totally novel with wiggle (no split ends complications)
 $BT window -a ${EXONS}.clean.bed -b ${ANNOT_EXONS}.bed -w $WIGGLE -v > sim10.exons.clean.w${WIGGLE}.novel
 
-$BT window -a ${EXONS}.clean.bed -b ${ANNOT_EXONS}.bed -w $WIGGLE | perl -ne 'BEGIN { $w='${WIGGLE}'; } chomp; $f=$_; ($c1,$s1,$e1,$o,$nr,$reads,$c2,$s2,$e2)=split(/\t/,$f); $d1=abs($s1-$s2); $d2=abs($e1-$e2); $c3=($d1>$d2?$s1:$e1); $line=join("\t",($c1,$s1,$e1,$o,$nr,$reads,$c3)); $k="$c1\t$s1\t$e1"; if($d1 <= 20 && $d2 <= 20) { delete $h2{$k}; $h{$k}=$line; } else { if(!$h{$k}) { $h2{$k}=$line; } }  END { for $k (values %h2) { print "$k\n"; } for $k (values %h) { print STDERR "$k\n"; }}' 2> sim10.exons.clean.w${WIGGLE}.matching > sim10.exons.clean.w${WIGGLE}.nonmatching
+$BT window -a ${EXONS}.clean.bed -b ${ANNOT_EXONS}.bed -w $WIGGLE | perl -ne 'BEGIN { $w='${WIGGLE}'; } chomp; $f=$_; ($c1,$s1,$e1,$o,$nr,$reads,$c2,$s2,$e2)=split(/\t/,$f); $d1=abs($s1-$s2); $d2=abs($e1-$e2); $c3=($d1>$d2?$s1:$e1); $line=join("\t",($c1,$s1,$e1,$o,$nr,$reads,$c3)); $k="$c1\t$s1\t$e1"; if($d1 <= $w && $d2 <= $w) { delete $h2{$k}; $h{$k}=$line; } else { if(!$h{$k}) { $h2{$k}=$line; } }  END { for $k (values %h2) { print "$k\n"; } for $k (values %h) { print STDERR "$k\n"; }}' 2> sim10.exons.clean.w${WIGGLE}.matching > sim10.exons.clean.w${WIGGLE}.nonmatching
 
 
 #split annotated exons to be both ends (but separate)
