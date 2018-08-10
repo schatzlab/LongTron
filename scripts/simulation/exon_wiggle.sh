@@ -18,7 +18,7 @@ cat $ANNOT_EXONS | perl -ne 'chomp; ($c,$s,$e)=split(/\t/,$_); $s--; print "$c\t
 
 
 #totally novel with wiggle (no split ends complications)
-$BT window -a ${EXONS}.clean.bed -b ${ANNOT_EXONS}.bed -w $WIGGLE -v | gzip > sim10.exons.clean.w${WIGGLE}.novel.gz
+$BT window -a ${EXONS}.clean.bed -b ${ANNOT_EXONS}.bed -w $WIGGLE -v > sim10.exons.clean.w${WIGGLE}.novel
 
 $BT window -a ${EXONS}.clean.bed -b ${ANNOT_EXONS}.bed -w $WIGGLE | perl -ne 'BEGIN { $w='${WIGGLE}'; } chomp; $f=$_; ($c1,$s1,$e1,$o,$nr,$reads,$c2,$s2,$e2)=split(/\t/,$f); $d1=abs($s1-$s2); $d2=abs($e1-$e2); $c3=($d1>$d2?$s1:$e1); $line=join("\t",($c1,$s1,$e1,$o,$nr,$reads,$c3)); $k="$c1\t$s1\t$e1"; if($d1 <= 20 && $d2 <= 20) { delete $h2{$k}; $h{$k}=$line; } else { if(!$h{$k}) { $h2{$k}=$line; } }  END { for $k (values %h2) { print "$k\n"; } for $k (values %h) { print STDERR "$k\n"; }}' 2> sim10.exons.clean.w${WIGGLE}.matching > sim10.exons.clean.w${WIGGLE}.nonmatching
 
@@ -62,3 +62,5 @@ cat ${ALL_NONMATCH}.raw | perl -ne 'BEGIN {$w='${WIGGLE}';} chomp; $f=$_; @f=spl
 #3) CONTAINING (annotated within new exons)
 #get ones which contain annotated
 cat ${ALL_NONMATCH}.raw | perl -ne 'BEGIN {$w='${WIGGLE}';} chomp; $f=$_; @f=split(/\t/,$f); ($s,$e)=($f[1],$f[2]); ($s2,$e2)=($f[8],$f[9]); $d1=abs($s2-$s); $d2=abs($e2-$e); $k="$c:$s-$e"; if($pk && $k ne $pk && $h{$pk}) { print $h{$pk}; delete $h{$pk}; } $pk=$k; if($s < $s2 && $e > $e2 && $d1 > $w && $d2 > $w) { $f=~s/^([^\t]+)\t([^\t]+)\t([^\t]+)\t/$1:$2-$3\t/;  $h{$k}="$f\t$d1\t$d2\n"; } END { if($pk && $h{$pk}) { print $h{$pk}; } }' | sort -k3,3nr > w${WIGGLE}.refseq_gencode.containing_annotated
+
+/bin/bash -x counts.sh ${EXONS}.clean.bed sim10.exons.clean.w${WIGGLE}.novel sim10.exons.clean.w${WIGGLE}.matching sim10.exons.clean.w${WIGGLE}.nonmatching w${WIGGLE}.refseq_gencode.overlapping_not_contained w${WIGGLE}.refseq_gencode.contained_not_just_overlapping w${WIGGLE}.refseq_gencode.containing_annotated ${WIGGLE} > ${1}.w${WIGGLE}.counts.tsv  
