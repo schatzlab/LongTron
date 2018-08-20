@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail -o nounset -o errexit 
 
 BT=/data/bedtools2/bin/bedtools
 
@@ -64,3 +65,5 @@ cat ${ALL_NONMATCH}.raw | perl -ne 'BEGIN {$w='${WIGGLE}';} chomp; $f=$_; @f=spl
 cat ${ALL_NONMATCH}.raw | perl -ne 'BEGIN {$w='${WIGGLE}';} chomp; $f=$_; @f=split(/\t/,$f); ($s,$e)=($f[1],$f[2]); ($s2,$e2)=($f[8],$f[9]); $d1=abs($s2-$s); $d2=abs($e2-$e); $k="$c:$s-$e"; if($pk && $k ne $pk && $h{$pk}) { print $h{$pk}; delete $h{$pk}; } $pk=$k; if($s < $s2 && $e > $e2 && $d1 > $w && $d2 > $w) { $f=~s/^([^\t]+)\t([^\t]+)\t([^\t]+)\t/$1:$2-$3\t/;  $h{$k}="$f\t$d1\t$d2\n"; } END { if($pk && $h{$pk}) { print $h{$pk}; } }' | sort -k3,3nr > w${WIGGLE}.refseq_gencode.containing_annotated
 
 /bin/bash -x counts.sh ${EXONS}.clean.bed sim10.exons.clean.w${WIGGLE}.novel sim10.exons.clean.w${WIGGLE}.matching sim10.exons.clean.w${WIGGLE}.nonmatching w${WIGGLE}.refseq_gencode.overlapping_not_contained w${WIGGLE}.refseq_gencode.contained_not_just_overlapping w${WIGGLE}.refseq_gencode.containing_annotated ${WIGGLE} > ${1}.w${WIGGLE}.counts.tsv  
+
+ln -fs ${1}.w${WIGGLE}.counts.tsv counts.out
