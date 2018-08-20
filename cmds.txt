@@ -62,16 +62,24 @@ cat original_plus_4_wiggle.juncs.sorted.full | perl -ne 'chomp; $f=$_; @f=split(
 
 python ./sweep.py --db-file original_plus_4_wiggle.juncs.sorted.full.novel_20.coords --query-file recount_hg38_gencode_disjoint_exons.tsv.gz.collapsed --db-start-col 0 --q-start-col 1 --no-gzip > original_plus_4_wiggle.juncs.sorted.full.novel_20.coords.overlapping_exons
 
-cat original_plus_4_wiggle.juncs.sorted.full.novel_20.coords.overlapping_exons | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e)=($f[1],$f[2],$f[3]); for($i=5;$i<scalar(@f);$i++) { ($c2,$s2,$e2)=split(/\|\|\|/,$f[$i]); print "$c2\t$s2\t$e2\n";}' | sort -u > o1
-fgrep -v -f o1 original_plus_4_wiggle.juncs.sorted.full.novel_20.coords > o2
+cat original_plus_4_wiggle.juncs.sorted.full.novel_20.coords.overlapping_exons | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e)=($f[1],$f[2],$f[3]); for($i=5;$i<scalar(@f);$i++) { ($c2,$s2,$e2)=split(/\|\|\|/,$f[$i]); print "$c2\t$s2\t$e2\n";}' | sort -u > junctions_containing_exons.20
+fgrep -v -f junctions_containing_exons.20 original_plus_4_wiggle.juncs.sorted.full.novel_20.coords > jxs_not_containing_exons.20
 
-python ./sweep.py --db-start-col 1 --db-file <(zcat /data/snaptron_data/gene_annotation_hg38/gencodev25_recount_genes.tsv.gz) --query-file o2 --q-start-col 0 --no-gzip --db-header
+python ./sweep.py --db-start-col 1 --db-file <(zcat /data/snaptron_data/gene_annotation_hg38/gencodev25_recount_genes.tsv.gz) --query-file jxs_not_containing_exons.20 --q-start-col 0 --no-gzip --db-header > overlaps_with_genes_not_exons.20
 
-#remove anything strictly contained
-cat original_plus_4_wiggle.juncs.sorted.full.novel_20.coords.overlapping_exons | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e)=($f[1],$f[2],$f[3]); for($i=5;$i<scalar(@f);$i++) { ($c2,$s2,$e2)=split(/\|\|\|/,$f[$i]); if($s2<$s && $e2>$e) { print "$c2\t$s2\t$e2\n";}}' | sort -u > o1
+#print any junction which strictly contains exons
+cat original_plus_4_wiggle.juncs.sorted.full.novel_20.coords.overlapping_exons | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e)=($f[1],$f[2],$f[3]); for($i=5;$i<scalar(@f);$i++) { ($c2,$s2,$e2)=split(/\|\|\|/,$f[$i]); if($s2<$s && $e2>$e) { print "$c2\t$s2\t$e2\n";}}' | sort -u > junctions_containing_exons.20
 
 
 #add pacbio
 sort -k1,1 -k2,2n -k3,3n -k4,4 -k5,5n -k6,6 original_plus_5_wiggle.juncs > original_plus_5_wiggle.juncs.sorted
 #create full matrix of junctions with 4 comparison target sets
 cat original_plus_5_wiggle.juncs.sorted | perl -ne 'BEGIN { $fa="_full"; $pa1="_1_ss"; $pa2="_2_ss"; print "chr\tstart\tend\tlr_strand\tlr_nr\tshort_strand\tshort$fa\tshort$pa1\tshort$pa2\tshort_nr\trefseq_strand\trefseq$fa\trefseq$pa1\trefseq$pa2\trefseq_nr\tgtex_strand\tgtex$fa\tgtex$pa1\tgtex$pa2\tgtex_nr\tsra_strand\tsra$fa\tsra$pa1\tsra$pa2\tsra_nr\tpacbio_strand\tpacbio$fa\tpacbio$pa1\tpacbio$pa2\tpacbio_nr\n"; } chomp; $f=$_; $f=~tr/\+\-/10/; @f=split(/\t/,$f); ($c,$s,$e,$o,$nr)=@f; if($pc && ($pc ne $c || $ps != $s || $pe != $e)) { print "$pc\t$ps\t$pe\t$po\t$pnr"; for $t ("h","r","g","s","p") { if(!$h{$t}) { print "\t$po\t0\t0\t0\t0"; } else { print "\t".join("\t", @{$h{$t}}); } } print "\n";  %h=(); } $pc=$c; $ps=$s; $pe=$e; $po=$o; $pnr=$nr; if($f[5] ne "a") { local @k=splice(@f,8,5); $h{$f[8]}=\@k; } END { if($pc) { print "$pc\t$ps\t$pe\t$po\t$pnr"; for $t ("h","r","g","s") { if(!$h{$t}) { print "\t$po\t0\t0\t0\t0"; } else { print "\t".join("\t", @{$h{$t}}); } } print "\n"; }} ' > original_plus_5_wiggle.juncs.sorted.full
+
+
+
+#collapse genes
+zcat /data/snaptron_data/gene_annotation_hg38/gencodev25_recount_genes.tsv.gz | cut -f 1-4,6,8 | sort -k2,2 -k3,3n -k4,4n | perl -ne 'chomp; ($g,$c,$s,$e,$o,$gn)=split(/\t/,$_); $rest=join(",",($g,$gn,$o)); if($pc && $pc eq $c && $s <= $pe) { $pe=$e if($e > $pe); $p.="|$rest"; next; } if($pc) { print "$pc\t$ps\t$pe\t$p\n"; } $pc=$c; $ps=$s; $pe=$e; $p=$rest; END { if($pc) { print "$pc\t$ps\t$pe\t$p\n"; } }' | sort -k1,1 -k2,2n -k3,3n > /data/snaptron_data/gene_annotation_hg38/gencodev25_recount_genes.collapsed.sorted.tsv
+
+
+python ../sweep.py --db-file novel_jx_ranks.w_tcounts.sorted.closest.nr_strand.cut --query-file /data/snaptron_data/gene_annotation_hg38/gencodev25_recount_genes.collapsed.sorted.tsv --db-start-col 0 --q-start-col 0 --no-gzip | cat novel_jx_ranks.w_tcounts.sorted.closest.nr_strand.cut.gene_overlap | perl -ne 'chomp; @f=split(/\t/,$_); ($c,$s,$e,$info)=splice(@f,0,4); for $f (@f) { ($c2,$s2,$e2)=split(/\|\|\|/,$f); if($c eq $c2 && $s <= $s2 && $e >= $e2) { $f=~s/\|\|\|/\t/g; print "$f\n";}}' > novel_jx_ranks.w_tcounts.sorted.closest.nr_strand.cut.gene_overlap

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail -o nounset -o errexit 
 
 #assumes samtools is in the path
 MINIMAP=minimap2

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail -o nounset -o errexit 
 
 CUFFCOMP=~/cufflinks/cuffcompare
 #ANNOTATION=gencode.v28.basic.annotation.gtf

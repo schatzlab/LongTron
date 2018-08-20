@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail -o nounset -o errexit 
 BEDTOOLS='/data/bedtools2/bin/bedtools'
 
 WIGGLE=${1}

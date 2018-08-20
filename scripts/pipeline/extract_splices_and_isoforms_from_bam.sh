@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail -o nounset -o errexit 
 #extracts all splice junctions from each read which is:
 #1) properly aligned
 #2) and it not secondary or supplementary

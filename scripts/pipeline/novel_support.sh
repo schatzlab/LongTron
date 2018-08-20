@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail -o nounset -o errexit 
 
 echo "reads_required	novel_junctions	in_pacbio" > original_plus_4_wiggle.juncs.sorted.full.novel
 for i in 1 2 5 7 10 15 20 50 100 500 1000

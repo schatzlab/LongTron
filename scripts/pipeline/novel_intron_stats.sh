@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail -o nounset -o errexit 
 #creates list of junction coordinates + additional info useful in determining/ranking quality/novelty
 BEDTOOLS='/data/bedtools2/bin/bedtools'
 SWEEP='python ../../sweep.py'

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -o pipefail -o nounset -o errexit 
 #count different slices of the output of comparison between 2 sets of exon coordinates (strand ignored)
 
 simulated=$1
