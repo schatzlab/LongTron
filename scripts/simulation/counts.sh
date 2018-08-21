@@ -1,5 +1,5 @@
 #!/bin/bash
-set -o pipefail -o nounset -o errexit 
+set -o pipefail -o nounset -o errexit
 #count different slices of the output of comparison between 2 sets of exon coordinates (strand ignored)
 
 simulated=$1
@@ -12,20 +12,20 @@ contained=$6
 containing=$7
 wiggle=$8
 
-#cut -f 1,2,3 $simulated | sort -u > ${simulated}.u
-#wc -l ${simulated}.u > ${simulated}.u.wc
+cut -f 1,2,3 $simulated | sort -u > ${simulated}.u
+wc -l ${simulated}.u > ${simulated}.u.wc
 total=`cut -d' ' -f 1 ${simulated}.u.wc`
 
-#cat /dev/null > all3
-#for f in $novel $matching $nmatching; do
-#	cut -f 1,2,3 $f | sort -u > ${f}.u
-#	wc -l ${f}.u > ${f}.u.wc
-#	cat ${f}.u >> all3
-#done
-#sort -u all3 > all3.u
-#all3=`wc -l all3.u | cut -d" " -f1`
+cat /dev/null > all3
+for f in $novel $matching $nmatching; do
+	cut -f 1,2,3 $f | sort -u > ${f}.u
+	wc -l ${f}.u > ${f}.u.wc
+	cat ${f}.u >> all3
+done
+sort -u all3 > all3.u
+all3=`wc -l all3.u | cut -d" " -f1`
 
-#perl -e '$w='${wiggle}'; $t='${total}'; $a='${all3}'; $n='`cut -d" " -f1 ${novel}.u.wc`'; chomp($n); $m='`cut -d" " -f1 ${matching}.u.wc`'; chomp($m); $nm='`cut -d" " -f1 ${nmatching}.u.wc`'; chomp($nm); if($t != $a) { print "total ".$t." DOES NOT match novel+matching+non-matching ".$a.", unexpected, quitting!\n"; } else { print "100%\t($t)\ttotal matches\n";} printf("breakdown of totals:\n%.1f%\t(%u)\tcompletely novel\n%.1f%\t(%u)\toverlap with both ends within wiggle ($w)\n%.1f%\t(%u)\toverlap but one or both ends not within wiggle ($w)\n",100*($n/$t),$n,100*($m/$t),$m,100*($nm/$t),$nm);'
+perl -e '$w='${wiggle}'; $t='${total}'; $a='${all3}'; $n='`cut -d" " -f1 ${novel}.u.wc`'; chomp($n); $m='`cut -d" " -f1 ${matching}.u.wc`'; chomp($m); $nm='`cut -d" " -f1 ${nmatching}.u.wc`'; chomp($nm); if($t != $a) { print "total ".$t." DOES NOT match novel+matching+non-matching ".$a.", unexpected, quitting!\n"; } else { print "100%\t($t)\ttotal matches\n";} printf("breakdown of totals:\n%.1f%\t(%u)\tcompletely novel\n%.1f%\t(%u)\toverlap with both ends within wiggle ($w)\n%.1f%\t(%u)\toverlap but one or both ends not within wiggle ($w)\n",100*($n/$t),$n,100*($m/$t),$m,100*($nm/$t),$nm);'
 
 cat /dev/null > all3.nmatching
 for f in $overlapping $contained $containing; do
