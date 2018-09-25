@@ -69,6 +69,6 @@ perl -e '$to='${overlapping1}'; $tc='${containing1}'; $tc2='${contained1}'; $om=
 #now count transcripts for nonmatching ones
 for n in $overlapping $contained $containing; do
 	cut -f 4 $n | tr \\, \\n | cut -d'.' -f 1 | sort -u > ${n}.trans
-	cat ${n}.trans | perl -ne 'BEGIN {open(IN,"<'${tidmap}'"); %tids; while($line=<IN>) { chomp($line); ($tid,$n)=split(/\t/,$line); $n=~s/_0_[+-]$//; $tids{$tid}=$n; } close(IN);} chomp; $f=$_; $t=$tids{$f}; print "$t\n";' | sort | uniq -c > ${n}.trans.counts
+	cat ${n}.trans | perl -ne 'BEGIN {open(IN,"<'${tidmap}'"); %tids; while($line=<IN>) { chomp($line); ($tid,$n)=split(/\t/,$line); $n=~s/(\.[-+])?_0_[+-]$//; $tids{$tid}=$n; } close(IN);} chomp; $f=$_; $t=$tids{$f}; print "$t\n";' | sort | uniq -c > ${n}.trans.counts
 	cat ${n}.trans.counts | perl -ne 'chomp; @f=split(/\s+/,$_); $n=pop(@f); print "$n\n";' > ${n}.trans.names
 done
