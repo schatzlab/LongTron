@@ -12,7 +12,7 @@ WIGGLE=$3
 TID_FILE=$4
 
 #filter out any non-cannoical mapped junction
-#egrep -v -e '(HLA)|(alt)|(random)|(decoy)|(chrUn)' ${junctions} > ${JUNCTIONS}.clean
+egrep -v -e '(HLA)|(alt)|(random)|(decoy)|(chrUn)' ${JUNCTIONS} > ${JUNCTIONS}.clean
 
 #BED format
 cat ${JUNCTIONS}.clean | perl -ne 'chomp; ($c,$s,$e,$o,$nr,$reads)=split(/\t/,$_); $s--; print "".join("\t",($c,$s,$e,$o,$nr,$reads))."\n";' > ${JUNCTIONS}.clean.bed
