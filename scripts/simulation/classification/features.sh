@@ -55,6 +55,6 @@ $BT intersect -sorted -s -c -a ${IN}.n.rm.sr -b ${IN}.n > ${IN}.n.rm.sr.snps.ot
 ###SpliceMotif frequency
 bedtools intersect -sorted -wao -s -a ${IN}.n.rm.sr.snps.ot -b <(zcat $SM) | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,13); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { print "$p\t$bc\n"; } $bc=0; $p=$all; } $pt=$t; ($s1,$e1,$s2,$e2)=($f1[1],$f1[2],$f[1],$f[2]); $bc++ if($s2 >= $s1 && $e2 <= $e1); END { if($pt) { print "$p\t$bc\n"; }}' > ${IN}.n.rm.sr.snps.ot.sm
 #old way
-#get splice motif frequency
-cat ${IN}.n.rm.sr.snps.ot | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e,$n,$j,$o)=@f; @s=`'$ST' faidx '${GENOME_INDEX}' $c:$s-$e | fgrep -v ">"`; chomp(@s); $seq=join("",@s); @s=split(//,$seq); $nmotifs=0; $len=scalar(@s); $lm="GT"; $rm="AG"; if($o eq "-") { $lm="CT"; $rm="AC"; } for($i=0;$i+1 < $len;$i++) { $m=$s[$i].$s[$i+1]; if($m =~ /$lm/i || $m =~ /$rm/i) { $nmotifs++; } } print "$f\t$nmotifs\n";' > ${IN}.n.rm.sr.snps.ot.sm
+#get splice motif frequency (note this was changed to use 1-base positions for querying via faidx)
+cat ${IN}.n.rm.sr.snps.ot | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e,$n,$j,$o)=@f; $s++; @s=`'$ST' faidx '${GENOME_INDEX}' $c:$s-$e | fgrep -v ">"`; chomp(@s); $seq=join("",@s); @s=split(//,$seq); $nmotifs=0; $len=scalar(@s); $lm="GT"; $rm="AG"; if($o eq "-") { $lm="CT"; $rm="AC"; } for($i=0;$i+1 < $len;$i++) { $m=$s[$i].$s[$i+1]; if($m =~ /$lm/i || $m =~ /$rm/i) { $nmotifs++; } } print "$f\t$nmotifs\n";' > ${IN}.n.rm.sr.snps.ot.sm
 
