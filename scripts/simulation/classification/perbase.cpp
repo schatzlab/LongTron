@@ -10,12 +10,15 @@
 #include <cstdint>
 #include <fcntl.h>
 
+static const int ASCII_OFFSET=48;
 static const int CHRM_COL=0;
 static const int CHRM_SIZE_COL=1;
 static const int START_COL=1;
 static const int END_COL=2;
 static const int VALUE_COL=3;
 static const int NUM_CHRM=25;
+//1MB per line should be more than enough
+static const int LINE_BUFFER_LENGTH=1048576;
 
 template<typename T>
 T* build_array(long size)
@@ -54,11 +57,10 @@ int parse_chrm_idx(const char* chrm_id)
 		default:
 			  if(len < 5)
 				  //subtract ascii offset
-				  idx = chrm_id[3]-48;
+				  idx = chrm_id[3]-ASCII_OFFSET;
 			  else
 				  idx = atoi(&(chrm_id[3]));
 	}
-	//printf("chr idx %s %d\n",chrm_id,idx);
 	return idx;
 }
 
@@ -76,13 +78,19 @@ T** build_chromosome_array(std::string chrm_file)
 		const char* chrm_id = tokens.at(CHRM_COL).c_str();
 		int idx = parse_chrm_idx(chrm_id);
 		long chrm_size = atol(tokens.at(CHRM_SIZE_COL).c_str());
-		//printf("chr idx %s %d %u\n",chrm_id,idx,chrm_size);
 		chrm_array[idx] = build_array<T>(chrm_size);
 	}
 	infile.close();
 	return chrm_array;
 }
 
+template<typename T>
+void delete_nested_array(T** array, long length)
+{
+	for(long i = 0; i < length; i++)
+		delete array[i];
+	delete array;
+}
 
 template <typename T>
 T extract_val(const char* str) { }
@@ -98,24 +106,14 @@ void set_value(int cidx, long start, long end, T value, T** chrm_array)
 {
 	//assume BED format start-1 to end
 	for(int i = start; i < end; i++)
-	{
 		chrm_array[cidx][i] = value;
-	}
 }
-/*
+
+void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.3f\n", line, summary); } 
+
+//about 3x faster than the sstring/string::getline version
 template <typename T>
-void output_line(std::string line, T summary) { } 
-
-template <>
-void output_line<uint8_t>(std::string line, uint8_t summary) { printf("%s\t%d\n",line, summary); } 
-
-template <>
-void output_line<double>(std::string line, double summary) { printf("%s\t%.3f\n",line, summary); } 
-*/
-
-//about 5x faster than the sstring/string::getline version
-template <typename T>
-T process_line(char* line, char* delim, int* cidx, long* start, long* end)
+T process_line(char* line, char* delim, int* cidx, long* start, long* end, int value_col)
 {
 	char* line_copy = strdup(line);
 	char* tok = strtok(line_copy, delim);
@@ -124,6 +122,8 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end)
 	T value;
 	while(tok != NULL)
 	{
+		if(i > value_col)
+			break;
 		if(i == CHRM_COL)
 		{
 			chrm = strdup(tok);
@@ -133,7 +133,7 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end)
 			*start = atol(tok);
 		if(i == END_COL)
 			*end = atol(tok);
-		if(i == VALUE_COL)
+		if(i == value_col)
 			value = extract_val<T>(tok);
 		i++;
 		tok = strtok(NULL,delim);
@@ -148,46 +148,68 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end)
 }
 
 template <typename T>
+double summarize_region(int* cidx, long* start, long* end, T** chrm_array)
+{
+	double summary = 0.0;
+	long length = *end - *start;
+	for(int i=*start; i < *end; i++)
+	{
+		summary	+= chrm_array[*cidx][i];
+	}
+	return summary/length;
+}
+
+template <typename T>
 void go(std::string chrm_file, std::string perbase_file)
 {
 	T** chrm_array = build_chromosome_array<T>(chrm_file);
-	//std::ifstream infile(perbase_file.c_str());
-	//assert(infile);
 	int cidx;
 	int pcidx = 0;
 	long start, end;
 	T value;
 	
-	char* line = NULL;
-	size_t length = 0;
+	char* line = new char[LINE_BUFFER_LENGTH];
+	size_t length = LINE_BUFFER_LENGTH;
 	FILE* fin = fopen(perbase_file.c_str(), "r");
 	assert(fin);
 	ssize_t bytes_read = getline(&line, &length, fin);
 	while(bytes_read != -1)
 	{
 		//assumes no header
-		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end);
-		if(cidx != pcidx)
-			printf("chr idx %d done\n",pcidx);
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, VALUE_COL);
+		if(cidx != pcidx && pcidx != 0)
+		{
+			fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
+			if(pcidx == 1)
+				break;
+		}
 		pcidx = cidx;
 		set_value<T>(cidx, start, end, value, chrm_array);
 		bytes_read = getline(&line, &length, fin);
-		//printf("%d %d\n",cidx,chrm_array[cidx][end-1]);
 	}
-	std::cout << "building done" << " " << perbase_file << "\n";
-	/*std::string line;
+	std::cerr << "building genome wide value array done\n";
+	pcidx = 0;
 	//now read main file from STDIN line-by-line
-	while(getline(std::cin, line))
+	bytes_read = getline(&line, &length, stdin);
+	char* line_wo_nl = new char[LINE_BUFFER_LENGTH];
+	while(bytes_read != -1)
 	{
-		std::vector<std::string> tokens;
-		split_string(line, '\t', &tokens);
-		cidx = parse_chrm_idx(tokens.at(CHRM_COL).c_str());
-		start = atol(tokens.at(START_COL).c_str());
-		end = atol(tokens.at(END_COL).c_str());
-		T summary = summarize_region<T>(cidx, start, end, chrm_array);
-		output_line<T>(line, summary);
+		//get rid of newline
+		memcpy(line_wo_nl, line, bytes_read-1);
+		line_wo_nl[bytes_read-1]='\0';
+		//assumes no header
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, VALUE_COL);
+		if(cidx != pcidx && pcidx != 0)
+			fprintf(stderr,"MATCHING: chr idx %d done\n",pcidx);
+		pcidx = cidx;
+		double summary = summarize_region<T>(&cidx, &start, &end, chrm_array);
+		output_line(line_wo_nl, summary);
+		bytes_read = getline(&line, &length, stdin);
 	}
-	std::cout << "matching done" << " " << perbase_file << "\n";*/
+	std::cerr << "matching done\n";
+	delete line;
+	delete line_wo_nl;
+	delete_nested_array(chrm_array, NUM_CHRM+1);
 }
 
 int main(int argc, char* argv[])
@@ -205,6 +227,6 @@ int main(int argc, char* argv[])
 			case 't': perbase_type = optarg; break;
 		}
 	}
-	std::cout << "hello" << " " << perbase_file << " " << perbase_type << "\n";
+	std::cerr << "hello" << " " << perbase_file << " " << perbase_type << "\n";
 	go<uint8_t>(chrm_file, perbase_file);
 }
