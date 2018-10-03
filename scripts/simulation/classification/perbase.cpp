@@ -122,7 +122,7 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end, int v
 	T value;
 	while(tok != NULL)
 	{
-		if(i > value_col)
+		if((value_col != -1 && i > value_col) || (value_col == -1 && i > END_COL))
 			break;
 		if(i == CHRM_COL)
 		{
@@ -133,7 +133,7 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end, int v
 			*start = atol(tok);
 		if(i == END_COL)
 			*end = atol(tok);
-		if(i == value_col)
+		if(value_col != -1 && i == value_col)
 			value = extract_val<T>(tok);
 		i++;
 		tok = strtok(NULL,delim);
@@ -178,8 +178,8 @@ void go(std::string chrm_file, std::string perbase_file)
 		if(cidx != pcidx && pcidx != 0)
 		{
 			fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
-			//only do chr1 for testing
-			/*if(pcidx == 1)
+			//only do chr1 and 10 for testing
+			/*if(pcidx == 10)
 				break;*/
 		}
 		pcidx = cidx;
@@ -197,7 +197,7 @@ void go(std::string chrm_file, std::string perbase_file)
 		memcpy(line_wo_nl, line, bytes_read-1);
 		line_wo_nl[bytes_read-1]='\0';
 		//assumes no header
-		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, VALUE_COL);
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, -1);
 		if(cidx != pcidx && pcidx != 0)
 			fprintf(stderr,"MATCHING: chr idx %d done\n",pcidx);
 		pcidx = cidx;
@@ -226,6 +226,13 @@ int main(int argc, char* argv[])
 			case 't': perbase_type = optarg; break;
 		}
 	}
+
 	std::cerr << "hello" << " " << perbase_file << " " << perbase_type << "\n";
-	go<uint8_t>(chrm_file, perbase_file);
+	switch(perbase_type.c_str()[0])
+	{
+		case 'd': go<double>(chrm_file, perbase_file); break;
+		case 'l': go<long>(chrm_file, perbase_file); break;
+		default:
+			go<uint8_t>(chrm_file, perbase_file);
+	}
 }
