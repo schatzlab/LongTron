@@ -153,9 +153,7 @@ double summarize_region(int* cidx, long* start, long* end, T** chrm_array)
 	double summary = 0.0;
 	long length = *end - *start;
 	for(int i=*start; i < *end; i++)
-	{
 		summary	+= chrm_array[*cidx][i];
-	}
 	return summary/length;
 }
 
@@ -180,8 +178,9 @@ void go(std::string chrm_file, std::string perbase_file)
 		if(cidx != pcidx && pcidx != 0)
 		{
 			fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
-			if(pcidx == 1)
-				break;
+			//only do chr1 for testing
+			/*if(pcidx == 1)
+				break;*/
 		}
 		pcidx = cidx;
 		set_value<T>(cidx, start, end, value, chrm_array);
