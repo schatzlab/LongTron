@@ -17,6 +17,7 @@ static const int START_COL=1;
 static const int END_COL=2;
 static const int VALUE_COL=3;
 static const int NUM_CHRM=25;
+static const int BOTH_OPPOSITE_VAL=10;
 //1MB per line should be more than enough
 static const int LINE_BUFFER_LENGTH=1048576;
 
@@ -102,27 +103,38 @@ template <>
 double extract_val <double> (const char* str) { return atof(str); }
 
 template <typename T>
-void set_value(int cidx, long start, long end, T value, T** chrm_array)
+void set_value(int cidx, long start, long end, char strand, T value, T** chrm_array, int strand_col)
 {
+
+	if(strand_col != -1)
+		value = strand=='+'?1:3;
 	//assume BED format start-1 to end
 	for(int i = start; i < end; i++)
+	{
+		T current_val = chrm_array[cidx][i];
+		if(strand_col != -1 && current_val > 0)
+			value = current_val==value?(2*current_val):BOTH_OPPOSITE_VAL; 
 		chrm_array[cidx][i] = value;
+	}
 }
 
 void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.3f\n", line, summary); } 
 
 //about 3x faster than the sstring/string::getline version
 template <typename T>
-T process_line(char* line, char* delim, int* cidx, long* start, long* end, int value_col)
+T process_line(char* line, char* delim, int* cidx, long* start, long* end, char* strand, int value_col, int strand_col)
 {
 	char* line_copy = strdup(line);
 	char* tok = strtok(line_copy, delim);
 	int i = 0;
 	char* chrm;
 	T value;
+	int last_col = END_COL;
+	if(strand_col != -1 || value_col != -1)
+		last_col = value_col>strand_col?value_col:strand_col;
 	while(tok != NULL)
 	{
-		if((value_col != -1 && i > value_col) || (value_col == -1 && i > END_COL))
+		if(i > last_col)
 			break;
 		if(i == CHRM_COL)
 		{
@@ -133,8 +145,10 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end, int v
 			*start = atol(tok);
 		if(i == END_COL)
 			*end = atol(tok);
-		if(value_col != -1 && i == value_col)
+		if(i == value_col)
 			value = extract_val<T>(tok);
+		if(i == strand_col)
+			*strand = tok[0];
 		i++;
 		tok = strtok(NULL,delim);
 	}
@@ -148,23 +162,48 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end, int v
 }
 
 template <typename T>
-double summarize_region(int* cidx, long* start, long* end, T** chrm_array)
+double summarize_region(int* cidx, long* start, long* end, char* strand, T** chrm_array, int strand_col)
 {
 	double summary = 0.0;
 	long length = *end - *start;
+	int strand_val = *strand=='+'?1:3;
+	//fprintf(stderr,"value: %d line: %c\n",strand_val,*strand);
 	for(int i=*start; i < *end; i++)
-		summary	+= chrm_array[*cidx][i];
-	return summary/length;
+	{
+		if(strand_col != -1)
+		{
+			//only count if we're on the same strand or the splice motif occurs on both strand (10)
+			T value = chrm_array[*cidx][i];
+			if(value == BOTH_OPPOSITE_VAL)
+				value = strand_val;
+			if(strand_val == value || (value/strand_val == 2.0)) 
+			{
+				//0.5 because we're doing single base but splice motifs are dinucleotides
+				//we also multiply in case there's an overlapping splice motif here
+				//TODO may need to make this more general, not just for splice motifs
+				double b = 0.5 * (value/strand_val);
+				//summary += 0.5 * (value/strand_val);
+				summary += b;
+			}
+		}
+		else
+			summary	+= chrm_array[*cidx][i];
+	}
+	double final_val = summary;
+	if(strand_col == -1)
+		final_val /= length;
+	return final_val;
 }
 
 template <typename T>
-void go(std::string chrm_file, std::string perbase_file)
+void go(std::string chrm_file, std::string perbase_file, int strand_col)
 {
 	T** chrm_array = build_chromosome_array<T>(chrm_file);
 	int cidx;
 	int pcidx = 0;
 	long start, end;
 	T value;
+	char strand;
 	
 	char* line = new char[LINE_BUFFER_LENGTH];
 	size_t length = LINE_BUFFER_LENGTH;
@@ -174,7 +213,7 @@ void go(std::string chrm_file, std::string perbase_file)
 	while(bytes_read != -1)
 	{
 		//assumes no header
-		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, VALUE_COL);
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, VALUE_COL, strand_col);
 		if(cidx != pcidx && pcidx != 0)
 		{
 			fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
@@ -183,12 +222,14 @@ void go(std::string chrm_file, std::string perbase_file)
 				break;*/
 		}
 		pcidx = cidx;
-		set_value<T>(cidx, start, end, value, chrm_array);
+		set_value<T>(cidx, start, end, strand, value, chrm_array, strand_col);
 		bytes_read = getline(&line, &length, fin);
 	}
 	std::cerr << "building genome wide value array done\n";
 	pcidx = 0;
 	//now read main file from STDIN line-by-line
+	//FILE* fin1 = fopen("q1", "r");
+	//bytes_read = getline(&line, &length, fin1);
 	bytes_read = getline(&line, &length, stdin);
 	char* line_wo_nl = new char[LINE_BUFFER_LENGTH];
 	while(bytes_read != -1)
@@ -197,12 +238,13 @@ void go(std::string chrm_file, std::string perbase_file)
 		memcpy(line_wo_nl, line, bytes_read-1);
 		line_wo_nl[bytes_read-1]='\0';
 		//assumes no header
-		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, -1);
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, -1, strand_col);
 		if(cidx != pcidx && pcidx != 0)
 			fprintf(stderr,"MATCHING: chr idx %d done\n",pcidx);
 		pcidx = cidx;
-		double summary = summarize_region<T>(&cidx, &start, &end, chrm_array);
+		double summary = summarize_region<T>(&cidx, &start, &end, &strand, chrm_array, strand_col);
 		output_line(line_wo_nl, summary);
+		//bytes_read = getline(&line, &length, fin1);
 		bytes_read = getline(&line, &length, stdin);
 	}
 	std::cerr << "matching done\n";
@@ -217,22 +259,24 @@ int main(int argc, char* argv[])
 	std::string perbase_file;
 	std::string chrm_file;
 	std::string perbase_type = "int";
-	while((o  = getopt(argc, argv, "f:t:c:")) != -1) 
+	int strand_col = -1;
+	while((o  = getopt(argc, argv, "f:t:c:s:")) != -1) 
 	{
 		switch(o) 
 		{
 			case 'c': chrm_file = optarg; break;
 			case 'f': perbase_file = optarg; break;
 			case 't': perbase_type = optarg; break;
+			case 's': strand_col = atoi(optarg); break;
 		}
 	}
 
 	std::cerr << "hello" << " " << perbase_file << " " << perbase_type << "\n";
 	switch(perbase_type.c_str()[0])
 	{
-		case 'd': go<double>(chrm_file, perbase_file); break;
-		case 'l': go<long>(chrm_file, perbase_file); break;
+		case 'd': go<double>(chrm_file, perbase_file, strand_col); break;
+		case 'l': go<long>(chrm_file, perbase_file, strand_col); break;
 		default:
-			go<uint8_t>(chrm_file, perbase_file);
+			go<uint8_t>(chrm_file, perbase_file, strand_col);
 	}
 }
