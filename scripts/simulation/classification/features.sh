@@ -18,6 +18,7 @@ ST=samtools
 BT=bedtools
 #the following needs to have had samtools faidx run on it ahead of time
 GENOME_INDEX=/data3/indexes/GRCh38_full_analysis_set_plus_decoy_hla.fa
+GENOME_SIZES=/data/kent_tools/hg38.chrom.sizes.cannonical
 
 #RepeatMasker preped DB
 RM=rm.bed
@@ -27,6 +28,10 @@ SR=sr.bed
 SNPS=snps.bed
 #Splice Motifs
 SM=hg38_splice_motifs.all.bed.bgz
+GC=gc5Base.bg.clean
+UMAP=k24.Umap.MultiTrackMappability.sorted.bg
+EXONS_PERBASE=gencode.v28.basic.annotation.exons.perbase.counts.bgz
+TRANSCRIPTS_PERBASE=gencode.v28.basic.annotation.transcripts.perbase.counts.bgz
 
 #assume we get a true BED file as input
 IN=$1
@@ -52,9 +57,32 @@ $BT intersect -sorted -s -wao -a ${IN}.n.rm.sr -b $SNPS | perl -ne 'chomp; $f=$_
 ###Count of overlapping transcripts/reads *on the same strand*, always has at least 1 (itself)
 $BT intersect -sorted -s -c -a ${IN}.n.rm.sr -b ${IN}.n > ${IN}.n.rm.sr.snps.ot
 
+###GC content
+cat ${IN}.n.rm.sr.snps.ot | $PERBASE -c $GENOME_SIZES -f $GC -t c > ${IN}.n.rm.sr.snps.ot.gc
+
+###Mappability (k=24, umap)
+cat ${IN}.n.rm.sr.snps.ot.gc | $PERBASE -c $GENOME_SIZES -f $UMAP -t d > ${IN}.n.rm.sr.snps.ot.gc.umap
+
+
+###Segmental Dups
+$BT intersect -sorted -wao -a ${IN}.n.rm.sr.snps.ot.gc.umap -b $SEGDUPS | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,18); ($s,$e)=($f1[1],$f1[2]); $d=($e-$s); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { $bc=$bc/$pd; printf("$p\t$c\t%.3f\n",$bc); } $bc=0; $c=0; $p=$all; } $pd=$d; $pt=$t; if($f[6] != 0) { $c++; $bc+=$f[6]; } END { if($pt) { $bc=$bc/$pd; printf("$p\t$c\t%.3f\n",$bc); } }' > ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo
+
+
+###exon density
+cat ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo | $PERBASE -c $GENOME_SIZES -f <(zcat $EXONS_PERBASE) > ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed
+
+###transcript density
+cat ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed | $PERBASE -c $GENOME_SIZES -f <(zcat $TRANSCRIPTS_PERBASE) > ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td
+
+###Logs of nexons, exon bp, intron bp
+cat ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[8],$f[9],$f[10]); $idbpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td.logs
+
+
 ###SpliceMotif frequency
+###need to fix the perbase version of this (counts are currently off by a small factor)
+#still too slow way
 bedtools intersect -sorted -wao -s -a ${IN}.n.rm.sr.snps.ot -b <(zcat $SM) | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,13); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { print "$p\t$bc\n"; } $bc=0; $p=$all; } $pt=$t; ($s1,$e1,$s2,$e2)=($f1[1],$f1[2],$f[1],$f[2]); $bc++ if($s2 >= $s1 && $e2 <= $e1); END { if($pt) { print "$p\t$bc\n"; }}' > ${IN}.n.rm.sr.snps.ot.sm
-#old way
+#old really slow way
 #get splice motif frequency (note this was changed to use 1-base positions for querying via faidx)
 cat ${IN}.n.rm.sr.snps.ot | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e,$n,$j,$o)=@f; $s++; @s=`'$ST' faidx '${GENOME_INDEX}' $c:$s-$e | fgrep -v ">"`; chomp(@s); $seq=join("",@s); @s=split(//,$seq); $nmotifs=0; $len=scalar(@s); $lm="GT"; $rm="AG"; if($o eq "-") { $lm="CT"; $rm="AC"; } for($i=0;$i+1 < $len;$i++) { $m=$s[$i].$s[$i+1]; if($m =~ /$lm/i || $m =~ /$rm/i) { $nmotifs++; } } print "$f\t$nmotifs\n";' > ${IN}.n.rm.sr.snps.ot.sm
 
