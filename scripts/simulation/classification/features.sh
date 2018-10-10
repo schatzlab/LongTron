@@ -75,7 +75,12 @@ cat ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo | $PERBASE -c $GENOME_SIZES -f <(zcat 
 cat ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed | $PERBASE -c $GENOME_SIZES -f <(zcat $TRANSCRIPTS_PERBASE) > ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td
 
 ###Logs of nexons, exon bp, intron bp
-cat ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[8],$f[9],$f[10]); $idbpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td.logs
+cat ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[8],$f[9],$f[10]); $ibpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td.logs
+
+
+###minimum exon/intron size in alignment
+bedtools intersect -sorted -wao -a ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td.logs -b gencode.v28.basic.annotation.exon_intron_sizes.bed | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); $rid=$f[3]; $o1=$f[5]; $o2=$f[32]; $min_e_sz=$f[33]; $min_i_sz=$f[34]; if($prid eq $rid && $o1 eq $o2) { $pe_sz=$min_e_sz if(!$pe_sz ||  $pe_sz > $min_e_sz); $pi_sz=$min_i_sz if((!$pi_sz || $pi_sz > $min_i_sz) && $min_i_sz != 0); next; } if($prid) { $pi_sz=0 if(!$pi_sz); print "$p\t$pe_sz\t$pi_sz\n"; } if($o1 eq $o2) { $pe_sz=$min_e_sz; $pi_sz=($min_i_sz > 0?$min_i_sz:undef); } else { $pe_sz=undef; $pi_sz=undef; } $prid=$rid; $p=join("\t",splice(@f,0,27)); END { if($prid) { $pi_sz=0 if(!$pi_sz); print "$p\t$pe_sz\t$pi_sz\n"; } }' > ${IN}.n.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td.logs.mins
+
 
 
 ###SpliceMotif frequency
