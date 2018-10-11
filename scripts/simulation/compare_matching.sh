@@ -1,6 +1,8 @@
 #!/bin/bash
 set -o pipefail -o nounset -o errexit 
 
+FILTER=~/filter_one_file_by_another.py
+
 #base-0, so 5 runs if this is 4
 #the following assumes that there are at least 3 runs
 MAX_RUN_IDX=4
@@ -53,7 +55,7 @@ then
 fi
 for i in $(seq 0 ${MAX_RUN_IDX});
 do
-	cut -f 7 fl.${WIGGLE}.all.${i}/${JX_PREFIX}.w${WIGGLE}.novel | tr \; \\n | sort | uniq -c | sort -k1,1nr > fl.${WIGGLE}.all.${i}/${JX_PREFIX}.w${WIGGLE}.novel.names_counts
+	cut -f 7 fl.${WIGGLE}.all.${i}/${JX_PREFIX}.w${WIGGLE}.novel | tr \; \\n | cut -d'_' -f 1 | cut -d'.' -f 1,2 | sort | uniq -c | sort -k1,1nr > fl.${WIGGLE}.all.${i}/${JX_PREFIX}.w${WIGGLE}.novel.names_counts
 	cat fl.${WIGGLE}.all.${i}/${JX_PREFIX}.w${WIGGLE}.novel.names_counts | perl -ne 'chomp; ($j,$c,$n)=split(/\s+/,$_); print "$n\n";' | sort > fl.${WIGGLE}.all.${i}/${JX_PREFIX}.w${WIGGLE}.novel.names
 	cat fl.${WIGGLE}.all.${i}/${JX_PREFIX}.w${WIGGLE}.novel.names >> all.novels.names
 	if [ ! -f recurrent.novels.names ]
@@ -64,3 +66,20 @@ do
 	mv recurrent.novels.names.1 recurrent.novels.names
 done
 sort -u recurrent.novels.names | egrep -v -e '^$' > recurrent.novels.names.sorted.u
+
+NOVELS=recurrent.novels.names.sorted.u
+ALL_CLASSES=class2transcript.all
+
+#novels
+cat $NOVELS | perl -ne 'chomp; print "novel\t$_\n";' > $ALL_CLASSES
+#recurrent
+$FILTER -f ${NOVELS} -t all.3.trans.names -w -c 0 -n > all.3.trans.names.nonovels
+cat all.3.trans.names.nonovels | perl -ne 'chomp; print "recurrent\t$_\n";' >> $ALL_CLASSES
+#non-recurrent
+$FILTER -f all.3.trans.names -t all.problem.names.sorted.u -w -c 0 -n > all.problem.names.sorted.u.nonall3
+$FILTER -f ${NOVELS} -t all.problem.names.sorted.u.nonall3 -w -c 0 -n > all.problem.names.sorted.u.nonall3.nonovels
+cat all.problem.names.sorted.u.nonall3.nonovels | perl -ne 'chomp; print "non-recurrent\t$_\n";' >> $ALL_CLASSES
+#problem-free
+$FILTER -f all.problem.names.sorted.u -t ${ANNOTATION} -w -c 0 -n | cut -f 1 > good_tnames
+$FILTER -f ${NOVELS} -t good_tnames -w -c 0 -n > good_tnames.nonovels
+cat good_tnames.nonovels | perl -ne 'chomp; print "problem-free\t$_\n";' >> $ALL_CLASSES
