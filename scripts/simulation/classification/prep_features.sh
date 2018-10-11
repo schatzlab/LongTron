@@ -25,8 +25,17 @@ MAPPABILITY=k24.Umap.MultiTrackMappability.bw
 
 BW2BG=/data/kent_tools/bigWigToBedGraph
 
-#assume we get a true BED file as input
-IN=$1
+#pull out basic per-transcript/exon stats from annotation
+#this does NOT produce a BED file, coordinates are still 1-base
+zcat ${ANNOTATION} | egrep -e '	exon	' | sort -k1,1 -k4,4n -k5,5n > ${ANNOTATION}.exons
+cat ${ANNOTATION}.exons | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e,$o)=($f[0],$f[3],$f[4],$f[6]); $f=~/gene_id "([^"]+)";/; $g=$1; $f=~/gene_type "([^"]+)";/; $gt=$1; $f=~/gene_name "([^"]+)";/; $gn=$1; $f=~/transcript_id "([^"]+)";/; $t=$1; $ts{$t}->{gene}=[$g,$gn,$gt,$c,$o]; $d=($e-$s)+1; $ts{$t}->{esum}+=$d; push(@{$ts{$t}->{exons}},[$s,$e,$d]); END { for $t (keys %ts) { $v=$ts{$t}; ($g,$gn,$gt,$c,$o)=@{$v->{gene}}; $esum=$v->{esum}; $ne=scalar(@{$v->{exons}}); $ni=0; $isum=0; $exons=""; $introns=""; $tstart=2**31; $tend=-1; $pe=undef; $min_exon_sz=2**31; $min_intron_sz=2**31; for $exon (@{$v->{exons}}) {  ($s,$e)=@$exon; $sz=($e-$s)+1; $min_exon_sz=$sz if($sz < $min_exon_sz); $tstart=$s if($s < $tstart); $tend=$e if($e > $tend); $exons.="$s-$e;"; if($pe) { $is=$pe+1; $ie=$s-1; $ni++; $sz=($ie-$is)+1; $min_intron_sz=$sz if($sz < $min_intron_sz); $isum+=($ie-$is)+1; $introns.="$is-$ie;"; } $pe=$e; } $exons=~s/;$//; $introns=~s/;$//; $min_intron_sz=0 if($ne==1); print "".(join("\t",($c,$tstart,$tend,$o,$t,$g,$gn,$gt,$ne,$esum,$ni,$isum,$exons,$introns,$min_exon_sz,$min_intron_sz)))."\n"; }}' > ${ANNOTATION}.exons_introns_per_transcript
+
+#pull out annotated junctions
+cat ${ANNOTATION}.exons | cut -f 1,4,5,7,9 | perl -ne 'chomp; $f=$_; ($c,$s,$e,$o,$info)=split(/\t/,$f); $info=~/transcript_id "([^"]+)";/; $t=$1; $info=~/exon_number (\d+);/; $eid=$1; $t.= "_0_$o"; if($ts{$t}) { $pe=$ts{$t}; $c1=$pe+1; $c2=$s-1;  $eid--; print "$c\t$c1\t$c2\t$t\t$eid\n"; } $ts{$t}=$e;' | sort -k1,1 -k2,2n -k3,3n | perl -ne 'chomp; $f=$_; ($c,$s,$e,$n)=split(/\t/,$f); if($n=~/_\+$/) { print "$f\n"; next; } if(!$ns{$n}) { $eid=0; } else { $eid=$ns{$n} } $eid++; print "$c\t$s\t$e\t$n\t$eid\n"; $ns{$n}=$eid;'  > ${ANNOTATION}.junctions
+
+#get number of exon per transcript
+cat ${ANNOTATION}.exons | perl -ne 'chomp; $f=$_; $f=~/transcript_id "([^"]+)";/; $t=$1; print "$t\n";' | sort | uniq -c | sort -k1,1nr | perl -ne 'chomp; ($j,$c,$n)=split(/\s+/,$_); print "$n\t$c\n";' > ${ANNOTATION}.transcripts_exon_count
+
 
 #convert SNPs to BED
 zcat $SNPS | cut -f 2-5,7 | sort -k1,1 -k2,2n -k3,3n > ${SNPS}.sorted
