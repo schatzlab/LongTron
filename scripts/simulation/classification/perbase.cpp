@@ -20,6 +20,9 @@ static const int NUM_CHRM=25;
 static const int BOTH_OPPOSITE_VAL=10;
 //1MB per line should be more than enough
 static const int LINE_BUFFER_LENGTH=1048576;
+//For future use
+static int TEST_MODE = -1;
+static int SPLICE_MOTIF_MODE = 0;
 
 template<typename T>
 T* build_array(long size)
@@ -105,20 +108,24 @@ double extract_val <double> (const char* str) { return atof(str); }
 template <typename T>
 void set_value(int cidx, long start, long end, char strand, T value, T** chrm_array, int strand_col)
 {
-
-	if(strand_col != -1)
-		value = strand=='+'?1:3;
 	//assume BED format start-1 to end
+	//splice motifs
+	//if(strand_col != -1 && end-start == 2)
+	if(SPLICE_MOTIF_MODE)
+	{
+		value = strand == '+'?1:3;
+		chrm_array[cidx][start] = value;
+		return;
+	}
 	for(int i = start; i < end; i++)
 	{
 		T current_val = chrm_array[cidx][i];
-		if(strand_col != -1 && current_val > 0)
-			value = current_val==value?(2*current_val):BOTH_OPPOSITE_VAL; 
 		chrm_array[cidx][i] = value;
 	}
 }
 
-void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.3f\n", line, summary); } 
+//void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.3f\n", line, summary); } 
+void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.0f\n", line, summary); } 
 
 //about 3x faster than the sstring/string::getline version
 template <typename T>
@@ -170,20 +177,14 @@ double summarize_region(int* cidx, long* start, long* end, char* strand, T** chr
 	//fprintf(stderr,"value: %d line: %c\n",strand_val,*strand);
 	for(int i=*start; i < *end; i++)
 	{
-		if(strand_col != -1)
+		if(SPLICE_MOTIF_MODE)
 		{
-			//only count if we're on the same strand or the splice motif occurs on both strand (10)
+			//only count if we're on the same strand AND the splice motif (2 nucs) is fully within the boundaries
 			T value = chrm_array[*cidx][i];
-			if(value == BOTH_OPPOSITE_VAL)
-				value = strand_val;
-			if(strand_val == value || (value/strand_val == 2.0)) 
+			//if(strand_val == value && !((i == *start && *strand=='-') || (i+1 == *end && *strand=='+')))
+			if(strand_val == value && i+1 != *end)
 			{
-				//0.5 because we're doing single base but splice motifs are dinucleotides
-				//we also multiply in case there's an overlapping splice motif here
-				//TODO may need to make this more general, not just for splice motifs
-				double b = 0.5 * (value/strand_val);
-				//summary += 0.5 * (value/strand_val);
-				summary += b;
+				summary += 1;
 			}
 		}
 		else
@@ -260,7 +261,7 @@ int main(int argc, char* argv[])
 	std::string chrm_file;
 	std::string perbase_type = "int";
 	int strand_col = -1;
-	while((o  = getopt(argc, argv, "f:t:c:s:")) != -1) 
+	while((o  = getopt(argc, argv, "f:t:c:s:m")) != -1) 
 	{
 		switch(o) 
 		{
@@ -268,9 +269,14 @@ int main(int argc, char* argv[])
 			case 'f': perbase_file = optarg; break;
 			case 't': perbase_type = optarg; break;
 			case 's': strand_col = atoi(optarg); break;
+			case 'm': SPLICE_MOTIF_MODE = 1; break;
 		}
 	}
-
+	if(SPLICE_MOTIF_MODE && strand_col == -1)
+	{
+		std::cerr << "Missing strand column parameter (e.g. -s 5) for splice motif mode" << "\n";
+		exit(-1);
+	}
 	std::cerr << "hello" << " " << perbase_file << " " << perbase_type << "\n";
 	switch(perbase_type.c_str()[0])
 	{
