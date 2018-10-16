@@ -40,7 +40,7 @@ BAM=$1
 
 #convert long read alignment BAM into BED of features (# exons, exon length, intron length, min_exon, min_intron, mapping_quality)
 #TODO: re-enable this for production
-#time samtools view -F 2308 $BAM | cut -f 1,2,3,4,5,6 | perl -ne 'BEGIN { $b=0; %chrms=("chr1"=>1,"chr2"=>1,"chr3"=>1,"chr4"=>1,"chr5"=>1,"chr6"=>1,"chr7"=>1,"chr8"=>1,"chr9"=>1,"chr10"=>1,"chr11"=>1,"chr12"=>1,"chr13"=>1,"chr14"=>1,"chr15"=>1,"chr16"=>1,"chr17"=>1,"chr18"=>1,"chr19"=>1,"chr20"=>1,"chr21"=>1,"chr22"=>1,"chrM"=>1,"chrX"=>1,"chrY"=>1); } chomp; ($name,$flag,$c,$s,$mapping_quality,$f)=split(/\t/,$_); next if(!$chrms{$c}); $start=$s--; my $o = (int($flag) & 0x10)?"-":"+"; $nexons=1; $exon_length=0; $intron_length=0; $r=$start; $pr=$r; $min_exon_sz=2**31; $min_intron_sz=2**31; while($f=~/(\d+)([NMD=X])/cg) { $i=$1; $t=$2; if($t eq "N") { $nexons++; $el=$r-$pr; $il=$i; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=$il if($il < $min_intron_sz); $exon_length+=$el; $intron_length+=$il; $pr=$r+$i; } $r+=$i; } $el=$r-$pr; $exon_length+=$el; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=0 if($nexons == 1); print "".join("\t",($c,$start,$r,"r$b.$name",0,$o,$nexons,$exon_length,$intron_length,$min_exon_sz,$min_intron_sz,$mapping_quality))."\n"; $b++;' | sort -k1,1 -k2,2n -k3,3n > ${BAM}.bed.n.min.mq
+samtools view -F 2308 $BAM | cut -f 1,2,3,4,5,6 | perl -ne 'BEGIN { $b=0; %chrms=("chr1"=>1,"chr2"=>1,"chr3"=>1,"chr4"=>1,"chr5"=>1,"chr6"=>1,"chr7"=>1,"chr8"=>1,"chr9"=>1,"chr10"=>1,"chr11"=>1,"chr12"=>1,"chr13"=>1,"chr14"=>1,"chr15"=>1,"chr16"=>1,"chr17"=>1,"chr18"=>1,"chr19"=>1,"chr20"=>1,"chr21"=>1,"chr22"=>1,"chrM"=>1,"chrX"=>1,"chrY"=>1); } chomp; ($name,$flag,$c,$s,$mapping_quality,$f)=split(/\t/,$_); next if(!$chrms{$c}); $start=$s--; my $o = (int($flag) & 0x10)?"-":"+"; $nexons=1; $exon_length=0; $intron_length=0; $r=$start; $pr=$r; $min_exon_sz=2**31; $min_intron_sz=2**31; while($f=~/(\d+)([NMD=X])/cg) { $i=$1; $t=$2; if($t eq "N") { $nexons++; $el=$r-$pr; $il=$i; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=$il if($il < $min_intron_sz); $exon_length+=$el; $intron_length+=$il; $pr=$r+$i; } $r+=$i; } $el=$r-$pr; $exon_length+=$el; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=0 if($nexons == 1); print "".join("\t",($c,$start,$r,"r$b.$name",0,$o,$nexons,$exon_length,$intron_length,$min_exon_sz,$min_intron_sz,$mapping_quality))."\n"; $b++;' | sort -k1,1 -k2,2n -k3,3n > ${BAM}.bed.n.min.mq
 
 IN=${BAM}.bed.n.min.mq
 
@@ -74,18 +74,18 @@ cat ${IN}.rm.sr.snps.ot.gc | $PERBASE -c $GENOME_SIZES -f $UMAP -t d > ${IN}.rm.
 
 
 ###exon density
-cat ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo | $PERBASE -c $GENOME_SIZES -f <(zcat $EXONS_PERBASE) > ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo.ed
+cat ${IN}.rm.sr.snps.ot.gc.umap | $PERBASE -c $GENOME_SIZES -f <(zcat $EXONS_PERBASE) > ${IN}.rm.sr.snps.ot.gc.umap.ed
 
 ###transcript density
-cat ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo.ed | $PERBASE -c $GENOME_SIZES -f <(zcat $TRANSCRIPTS_PERBASE) > ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td
+cat ${IN}.rm.sr.snps.ot.gc.umap.ed | $PERBASE -c $GENOME_SIZES -f <(zcat $TRANSCRIPTS_PERBASE) > ${IN}.rm.sr.snps.ot.gc.umap.ed.td
 
 ###Logs of nexons, exon bp, intron bp
-cat ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[6],$f[7],$f[8]); $ibpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td.logs
+cat ${IN}.rm.sr.snps.ot.gc.umap.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[6],$f[7],$f[8]); $ibpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logs
 
 
 ###SpliceMotif frequency
 #TODO: this is still a bit wonky (counts are off by a small(?, ~40) factor)
-cat ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td.logs | $PERBASE -c $GENOME_SIZES -f <(zcat $SM) -t d -s 5 >  ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo.ed.td.logs.sm
+cat ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logs | $PERBASE -c $GENOME_SIZES -f <(zcat $SM) -t d -s 5 >  ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logs.sm
 
 
 ###need to fix the perbase version of this (counts are currently off by a small factor)
