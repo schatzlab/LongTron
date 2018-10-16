@@ -1,8 +1,8 @@
 all: perbase
 
 perbase: perbase.cpp
-	#g++ -O3 -Wno-write-strings -std=c++11 perbase.cpp -o perbase
-	g++ -g -Wno-write-strings -std=c++11 perbase.cpp -o perbase
+	g++ -O3 -Wno-write-strings -std=c++11 perbase.cpp -o perbase
+	#g++ -g -Wno-write-strings -std=c++11 perbase.cpp -o perbase
 
 test: tests/test.bed perbase
 	cat tests/test.bed | ./perbase -c tests/chr1.size -f tests/small_sm.tsv -m -s 5  > test.bed.test
