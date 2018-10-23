@@ -3,17 +3,12 @@
 
 ntraining=$1
 nvalidation=$2
+input=$3
 
-#prep transcript features
-#name,nexons,exon_bp,intron_bp,rm_overlap,simpler_overlap,common_snp150_count,splice_motif_count,nTranscripts,nTSS,nPolyA,gene_smotifs
-#nTranscripts,nTSS,nPolyA have little feature importance
-#cut -f 1,11,12,14,18,19,21- all.tfeatures | tail -n+2 | perl -ne 'BEGIN { %h=("non-recurrent"=>0,"novel"=>1,"problem-free"=>2,"recurrent"=>3); } chomp; @f=split(/\t/,$_); $n=shift(@f); @a=(0,0,0,0); $a[$h{$n}]=1; print "$n\t".join("\t",@f)."\n"; print STDERR "$n\t".join("\t",@a)."\n";' > features.x 2> features.y
-
-#prep *read alignments* features
-#cut -f4,7-9,11- trans_sim10.fl.bam.bed.n.rm.sr.ot.sm.snps | perl -ne 'BEGIN { %c=("non-recurrent"=>0,"novel"=>1,"problem-free"=>2,"recurrent"=>3); open(IN,"<transcript2category2rid.mapping"); while($line=<IN>) { chomp($line); ($t,$c,$r)=split(/\s+/,$line); $h{$r}=$c; } close(IN); } chomp; @f=split(/\t/,$_); $n=shift(@f); $c=$h{$n}; @a=(0,0,0,0); $a[$c{$c}]=1; print "$c\t".join("\t",@f)."\n"; print STDERR "$c\t".join("\t",@a)."\n";' > trans_sim10.fl.bam.bed.n.rm.sr.ot.sm.snps.features 2>trans_sim10.fl.bam.bed.n.rm.sr.ot.sm.snps.labels
-
-ln -s trans_sim10.fl.bam.bed.n.rm.sr.ot.sm.snps.features features.x
-ln -s trans_sim10.fl.bam.bed.n.rm.sr.ot.sm.snps.labels features.y
+cut -f 8- $input > ${input}.x
+cut -f 1 ${input}.x | perl -ne 'BEGIN { %a=("problem-free"=>1,"non-recurrent"=>2,"recurrent"=>3,"novel"=>4); } chomp; $r=$_; @b=(0,0,0,0); $b[$a{$r}-1]=1; print "$r\t".join("\t",@b)."\n";' > ${input}.y
+ln -fs ${input}.x features.x
+ln -fs ${input}.y features.y
 
 echo -n "" > training.x
 echo -n "" > training.y
@@ -22,7 +17,7 @@ echo -n "" > validation.y
 echo -n "" > testing.x
 echo -n "" > testing.y
 echo -n "" > num_training_samples_per_cat
-for f in "non-recurrent" "novel" "problem-free" "recurrent";
+for f in "problem-free" "non-recurrent" "recurrent" "novel";
 do
 	#first we grep out the specific set we want and shuffle (randomize) the lines
 	egrep -e "^${f}" features.x | cut -f2- | shuf > features.x.${f}
@@ -54,7 +49,7 @@ done
 echo -n "" > training.x.bal
 echo -n "" > training.y.bal
 min=`cat num_training_samples_per_cat | perl -ne 'BEGIN { $min=(2**32)-1; } chomp; ($c,$name)=split(/\s+/,$_); next if($c > $min); $min=$c; END { print "$min\n";}'`
-for f in "non-recurrent" "novel" "problem-free" "recurrent";
+for f in "problem-free" "non-recurrent" "recurrent" "novel";
 do
 	head -${min} features.x.${f} >> training.x.bal
 	head -${min} features.y.${f} >> training.y.bal
@@ -65,11 +60,11 @@ done
 n=`head -1 training.x | tr \\\t \\\n | wc -l | cut -d" " -f 1`
 for t in "training" "validation" "testing";
 do
-	cat ${t}.y | perl -ne 'chomp; ($non_recurrent,$novel,$problem_free,$recurrent) = split(/\t/,$_); if($problem_free == 1) { print "0\n"; next; } print "1\n";' > binary.y.${t}
+	cat ${t}.y | perl -ne 'chomp; ($problem_free,$non_recurrent,$recurrent,$novel) = split(/\t/,$_); if($problem_free == 1) { print "0\n"; next; } print "1\n";' > binary.y.${t}
 	#binary: recurrent vs. problem-free
-	paste ${t}.x ${t}.y | egrep -e '	0	0	.	.$' | perl -ne 'chomp; @f=split(/\t/,$_); @f1=splice(@f,0,'${n}'); print "".join("\t",@f1)."\n"; ($non_recurrent,$novel,$problem_free,$recurrent) = @f; print STDERR "$recurrent\n";' > ${t}.2.x 2> ${t}.2.y
+	paste ${t}.x ${t}.y | egrep -e '	.	0	.	0$' | perl -ne 'chomp; @f=split(/\t/,$_); @f1=splice(@f,0,'${n}'); print "".join("\t",@f1)."\n"; ($problem_free,$non_recurrent,$recurrent,$novel) = @f; print STDERR "$recurrent\n";' > ${t}.2.x 2> ${t}.2.y
 	#binary: recurrent + non-recurrent vs. problem-free
-	paste ${t}.x ${t}.y | egrep -e '	.	0	.	.$' | perl -ne 'chomp; @f=split(/\t/,$_); @f1=splice(@f,0,'${n}'); print "".join("\t",@f1)."\n"; ($non_recurrent,$novel,$problem_free,$recurrent) = @f; print STDERR "$problem_free\n";' > ${t}.3a.x 2> ${t}.3a.y
+	paste ${t}.x ${t}.y | egrep -e '	.	.	.	0$' | perl -ne 'chomp; @f=split(/\t/,$_); @f1=splice(@f,0,'${n}'); print "".join("\t",@f1)."\n"; ($problem_free,$non_recurrent,$recurrent,$novel) = @f; print STDERR "$problem_free\n";' > ${t}.3a.x 2> ${t}.3a.y
 	#binary: recurrent + novels vs. problem-free
-	paste ${t}.x ${t}.y | egrep -e '	0	.	.	.$' | perl -ne 'chomp; @f=split(/\t/,$_); @f1=splice(@f,0,'${n}'); print "".join("\t",@f1)."\n"; ($non_recurrent,$novel,$problem_free,$recurrent) = @f; print STDERR "$problem_free\n";' > ${t}.3b.x 2> ${t}.3b.y
+	paste ${t}.x ${t}.y | egrep -e '	.	0	.	.$' | perl -ne 'chomp; @f=split(/\t/,$_); @f1=splice(@f,0,'${n}'); print "".join("\t",@f1)."\n"; ($problem_free,$non_recurrent,$recurrent,$novel) = @f; print STDERR "$problem_free\n";' > ${t}.3b.x 2> ${t}.3b.y
 done
