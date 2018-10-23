@@ -124,8 +124,8 @@ void set_value(int cidx, long start, long end, char strand, T value, T** chrm_ar
 	}
 }
 
-//void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.3f\n", line, summary); } 
-void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.0f\n", line, summary); } 
+void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.3f\n", line, summary); } 
+//void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.0f\n", line, summary); } 
 
 //about 3x faster than the sstring/string::getline version
 template <typename T>
