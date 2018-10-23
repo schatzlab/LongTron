@@ -33,18 +33,20 @@ SNPS=$SOURCE_PATH/snps.bed
 SM=$SOURCE_PATH/hg38_splice_motifs.all.bed.bgz
 GC=$SOURCE_PATH/gc5Base.bg.clean
 UMAP=$SOURCE_PATH/k24.Umap.MultiTrackMappability.sorted.bg
+SEGDUPS=$SOURCE_PATH/segmental_dups_hg38.sorted
 EXONS_PERBASE=$SOURCE_PATH/gencode.v28.basic.annotation.exons.perbase.counts.bgz
 TRANSCRIPTS_PERBASE=$SOURCE_PATH/gencode.v28.basic.annotation.transcripts.perbase.counts.bgz
+LOCAL_MAPPABILITY=$SOURCE_PATH/gv28.local_mappability.coords.bed
 
 BAM=$1
 
 #convert long read alignment BAM into BED of features (# exons, exon length, intron length, min_exon, min_intron, mapping_quality)
 #TODO: re-enable this for production
-samtools view -F 2308 $BAM | cut -f 1,2,3,4,5,6 | perl -ne 'BEGIN { $b=0; %chrms=("chr1"=>1,"chr2"=>1,"chr3"=>1,"chr4"=>1,"chr5"=>1,"chr6"=>1,"chr7"=>1,"chr8"=>1,"chr9"=>1,"chr10"=>1,"chr11"=>1,"chr12"=>1,"chr13"=>1,"chr14"=>1,"chr15"=>1,"chr16"=>1,"chr17"=>1,"chr18"=>1,"chr19"=>1,"chr20"=>1,"chr21"=>1,"chr22"=>1,"chrM"=>1,"chrX"=>1,"chrY"=>1); } chomp; ($name,$flag,$c,$s,$mapping_quality,$f)=split(/\t/,$_); next if(!$chrms{$c}); $start=$s--; my $o = (int($flag) & 0x10)?"-":"+"; $nexons=1; $exon_length=0; $intron_length=0; $r=$start; $pr=$r; $min_exon_sz=2**31; $min_intron_sz=2**31; while($f=~/(\d+)([NMD=X])/cg) { $i=$1; $t=$2; if($t eq "N") { $nexons++; $el=$r-$pr; $il=$i; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=$il if($il < $min_intron_sz); $exon_length+=$el; $intron_length+=$il; $pr=$r+$i; } $r+=$i; } $el=$r-$pr; $exon_length+=$el; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=0 if($nexons == 1); print "".join("\t",($c,$start,$r,"r$b.$name",0,$o,$nexons,$exon_length,$intron_length,$min_exon_sz,$min_intron_sz,$mapping_quality))."\n"; $b++;' | sort -k1,1 -k2,2n -k3,3n > ${BAM}.bed.n.min.mq
+#samtools view -F 2308 $BAM | cut -f 1,2,3,4,5,6 | perl -ne 'BEGIN { $b=0; %chrms=("chr1"=>1,"chr2"=>1,"chr3"=>1,"chr4"=>1,"chr5"=>1,"chr6"=>1,"chr7"=>1,"chr8"=>1,"chr9"=>1,"chr10"=>1,"chr11"=>1,"chr12"=>1,"chr13"=>1,"chr14"=>1,"chr15"=>1,"chr16"=>1,"chr17"=>1,"chr18"=>1,"chr19"=>1,"chr20"=>1,"chr21"=>1,"chr22"=>1,"chrM"=>1,"chrX"=>1,"chrY"=>1); } chomp; ($name,$flag,$c,$s,$mapping_quality,$f)=split(/\t/,$_); next if(!$chrms{$c}); $start=$s-1; my $o = (int($flag) & 0x10)?"-":"+"; $nexons=1; $exon_length=0; $intron_length=0; $r=$start; $pr=$r; $min_exon_sz=2**31; $min_intron_sz=2**31; while($f=~/(\d+)([NMD=X])/cg) { $i=$1; $t=$2; if($t eq "N") { $nexons++; $el=$r-$pr; $il=$i; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=$il if($il < $min_intron_sz); $exon_length+=$el; $intron_length+=$il; $pr=$r+$i; } $r+=$i; } $el=$r-$pr; $exon_length+=$el; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=0 if($nexons == 1); print "".join("\t",($c,$start,$r,"r$b",0,$o,$name,$nexons,$exon_length,$intron_length,$min_exon_sz,$min_intron_sz,$mapping_quality))."\n"; $b++;' | sort -k1,1 -k2,2n -k3,3n > ${BAM}.bed.nX3.minX2.mq
 
-IN=${BAM}.bed.n.min.mq
+IN=${BAM}.bed.nX3.minX2.mq
 
-OFFSET=12
+OFFSET=13
 
 ###RepeatMasker
 #overlap with RepeatMasker and then
@@ -69,10 +71,6 @@ cat ${IN}.rm.sr.snps.ot | $PERBASE -c $GENOME_SIZES -f $GC -t c > ${IN}.rm.sr.sn
 cat ${IN}.rm.sr.snps.ot.gc | $PERBASE -c $GENOME_SIZES -f $UMAP -t d > ${IN}.rm.sr.snps.ot.gc.umap
 
 
-###Segmental Dups
-#$BT intersect -sorted -wao -a ${IN}.rm.sr.snps.ot.gc.umap -b $SEGDUPS | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,('$OFFSET'+5)); ($s,$e)=($f1[1],$f1[2]); $d=($e-$s); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { $bc=$bc/$pd; printf("$p\t$c\t%.3f\n",$bc); } $bc=0; $c=0; $p=$all; } $pd=$d; $pt=$t; if($f[6] != 0) { $c++; $bc+=$f[6]; } END { if($pt) { $bc=$bc/$pd; printf("$p\t$c\t%.3f\n",$bc); } }' > ${IN}.rm.sr.snps.ot.gc.umap.nsd.sdo
-
-
 ###exon density
 cat ${IN}.rm.sr.snps.ot.gc.umap | $PERBASE -c $GENOME_SIZES -f <(zcat $EXONS_PERBASE) > ${IN}.rm.sr.snps.ot.gc.umap.ed
 
@@ -80,18 +78,16 @@ cat ${IN}.rm.sr.snps.ot.gc.umap | $PERBASE -c $GENOME_SIZES -f <(zcat $EXONS_PER
 cat ${IN}.rm.sr.snps.ot.gc.umap.ed | $PERBASE -c $GENOME_SIZES -f <(zcat $TRANSCRIPTS_PERBASE) > ${IN}.rm.sr.snps.ot.gc.umap.ed.td
 
 ###Logs of nexons, exon bp, intron bp
-cat ${IN}.rm.sr.snps.ot.gc.umap.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[6],$f[7],$f[8]); $ibpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logs
-
+cat ${IN}.rm.sr.snps.ot.gc.umap.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[7],$f[8],$f[9]); $ibpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3
 
 ###SpliceMotif frequency
-#TODO: this is still a bit wonky (counts are off by a small(?, ~40) factor)
-cat ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logs | $PERBASE -c $GENOME_SIZES -f <(zcat $SM) -t d -s 5 >  ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logs.sm
+#this is fixed now
+cat ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3 | $PERBASE -c $GENOME_SIZES -f <(zcat $SM) -m -s 5 >  ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm
 
+###Segmental Dups
+$BT intersect -sorted -wao -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm -b $SEGDUPS | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,('$OFFSET'+12)); ($s,$e)=($f1[1],$f1[2]); $d=($e-$s); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { $bc=$bc/$pd; printf("$p\t$c\t%.3f\n",$bc); } $bc=0; $c=0; $p=$all; } $pd=$d; $pt=$t; if($f[6] != 0) { $c++; $bc+=$f[6]; } END { if($pt) { $bc=$bc/$pd; printf("$p\t$c\t%.3f\n",$bc); } }' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2
 
-###need to fix the perbase version of this (counts are currently off by a small factor)
-#still too slow way
-#bedtools intersect -sorted -wao -s -a ${IN}.rm.sr.snps.ot -b <(zcat $SM) | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,13); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { print "$p\t$bc\n"; } $bc=0; $p=$all; } $pt=$t; ($s1,$e1,$s2,$e2)=($f1[1],$f1[2],$f[1],$f[2]); $bc++ if($s2 >= $s1 && $e2 <= $e1); END { if($pt) { print "$p\t$bc\n"; }}' > ${IN}.rm.sr.snps.ot.sm
-#old really slow way
-#get splice motif frequency (note this was changed to use 1-base positions for querying via faidx)
-#cat ${IN}.rm.sr.snps.ot | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($c,$s,$e,$n,$j,$o)=@f; $s++; @s=`'$ST' faidx '${GENOME_INDEX}' $c:$s-$e | fgrep -v ">"`; chomp(@s); $seq=join("",@s); @s=split(//,$seq); $nmotifs=0; $len=scalar(@s); $lm="GT"; $rm="AG"; if($o eq "-") { $lm="CT"; $rm="AC"; } for($i=0;$i+1 < $len;$i++) { $m=$s[$i].$s[$i+1]; if($m =~ /$lm/i || $m =~ /$rm/i) { $nmotifs++; } } print "$f\t$nmotifs\n";' > ${IN}.rm.sr.snps.ot.sm
+###Local Mappability
+#TODO: check offset on this one (OFFSET+14)
+$BT intersect -sorted -s -wao -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2 -b ${LOCAL_MAPPABILITY} | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,('$OFFSET'+14)); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { for($i=0;$i<scalar(@new);$i++) { $new[$i]/=$c; } $new_fields = join("\t",@new); print "$p\t$new_fields\n"; } $p=$all; @new=(); $c=0; } $c++; $pt=$t; for($i=6;$i<scalar(@f)-1;$i++) { $new[$i-6]+=$f[$i]; }  END { if($pt) { for($i=0;$i<scalar(@new);$i++) { $new[$i]/=$c; } $new_fields = join("\t",@new); print "$p\t$new_fields\n"; } }' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4
 
