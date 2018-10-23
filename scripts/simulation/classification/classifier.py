@@ -1,52 +1,53 @@
 #!/bin/env python
+import sys
+import re
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.ensemble import ExtraTreesClassifier
-from sklearn import svm
-from sklearn.cross_validation import cross_val_score
 from numpy import genfromtxt
+from sklearn.externals import joblib
 
-#cut -f 1,11,12,14,18,19,21- all.tfeatures | tail -n+2 | perl -ne 'BEGIN { %h=("non-recurrent"=>0,"novel"=>1,"problem-free"=>2,"recurrent"=>3); } chomp; @f=split(/\t/,$_); $n=shift(@f); @a=(0,0,0,0); $a[$h{$n}]=1; print "$n\t".join("\t",@f)."\n"; print STDERR "$n\t".join("\t",@a)."\n";' > all.tfeatures.all_x_vectors 2> all.tfeatures.all_y_vectors
-if __name__ == '__main__':
-    x = genfromtxt("training.x",delimiter='\t')
-    y = genfromtxt("training.y",delimiter='\t')
+fname = sys.argv[1]
+#trans_sim10.fl.0.bam.bed.nX3.minX2.mq.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm
+pos = fname.find('nX3')
+fields_ = fname[pos:].split('.')
+fields = []
+p = re.compile(r'([^X]+)X(\d+)')
+for f in fields_:
+    m = p.search(f)
+    if m:
+        label = m.group(1)
+        multiplier = m.group(2)
+        fields.extend(int(multiplier)*[label])
+    else:
+        fields.append(f)
 
-    #only recurrent vs. problem-free
-    x2 = genfromtxt("training.2.x",delimiter='\t')
-    y2 = genfromtxt("training.2.y",delimiter='\t')
-    
-    #no novels
-    x3 = genfromtxt("training.3.x",delimiter='\t')
-    y3 = genfromtxt("training.3.y",delimiter='\t')
+print fields
 
-    #binary break down
-    yb = genfromtxt("binary.y.training",delimiter='\t')
-    #permuted labels
-    yr = genfromtxt("training.y.shuf",delimiter='\t')
-    
-    xv = genfromtxt("validation.x",delimiter='\t')
-    yv = genfromtxt("validation.y",delimiter='\t')
-    
-    xv2 = genfromtxt("validation.2.x",delimiter='\t')
-    yv2 = genfromtxt("validation.2.y",delimiter='\t')
-    
-    xv3 = genfromtxt("validation.3.x",delimiter='\t')
-    yv3 = genfromtxt("validation.3.y",delimiter='\t')
-    
-    ybv = genfromtxt("binary.y.validation",delimiter='\t')
-    
-    xt = genfromtxt("testing.x",delimiter='\t')
-    yt= genfromtxt("testing.y",delimiter='\t')
+x = genfromtxt("training.x",delimiter='\t')
+y = genfromtxt("training.y",delimiter='\t')
 
-    crf = RandomForestClassifier(n_estimators=100, n_jobs=4)
-    c = crf.fit(x,y)
-    c.score(xv,yv)
-    
-    crf = ExtraTreesClassifier(n_estimators=100, n_jobs=4)
-    c = crf.fit(x,y)
-    c.score(xv,yv)
+#binary break down
+yb = genfromtxt("binary.y.training",delimiter='\t')
+#permuted labels
+#yr = genfromtxt("training.y.shuf",delimiter='\t')
 
-    cvscores = cross_val_score(crf, x, y, cv=10)
+xv = genfromtxt("validation.x",delimiter='\t')
+yv = genfromtxt("validation.y",delimiter='\t')
 
-    srf = svm.SVC(verbose=True)
-    s = srf.fit(x,y)
-    s.predict(xv,yv)
+ybv = genfromtxt("binary.y.validation",delimiter='\t')
+
+crf = RandomForestClassifier(n_estimators=100, n_jobs=8)
+c = crf.fit(x,y)
+joblib.dump(c,"%s.rfc_trained4" % (fname))
+sys.stdout.write("validation: %s\n" % str(c.score(xv,yv)))
+sys.stdout.write("importance: ")
+#print c.feature_importances_
+[sys.stdout.write(" %s:%s " % (fields[i],str(x_))) for (i,x_) in enumerate(c.feature_importances_)]
+sys.stdout.write("\n")
+
+bcrf = RandomForestClassifier(n_estimators=100, n_jobs=8)
+bc = bcrf.fit(x,yb)
+joblib.dump(bc,"%s.rfc_trained2" % (fname))
+sys.stdout.write("binary validation: %s\n" % str(bc.score(xv,ybv)))
+sys.stdout.write("importance: ")
+[sys.stdout.write(" %s:%s " % (fields[i],str(x_))) for (i,x_) in enumerate(bc.feature_importances_)]
+sys.stdout.write("\n")
