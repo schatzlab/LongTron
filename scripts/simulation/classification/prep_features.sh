@@ -84,3 +84,7 @@ bedtools intersect -sorted -c -a <(zcat ${$ANNOTATION}.transcripts.perbase.bgz) 
 
 #merge forward and reverse strands of all cannonical splice motifs from reference into one file (sorted)
 cat <(zcat ${ANNOT_VER}.forward_splice_motifs.all.tsv.bgz | perl -ne 'chomp; print "$_\t0\t+\n";') <(zcat ${ANNOT_VER}.reverse_splice_motifs.all.tsv.bgz | perl -ne 'chomp; print "$_\t0\t-\n";') | sort -k1,1 -k2,2n -k3,3n | bgzip > ${ANNOT_VER}.splice_motifs.all.tsv.bgz
+
+
+#get per-gene level stats about transcript and exon lengths/counts/sums/averages
+zcat gencode.v28.basic.annotation.gtf.gz | egrep -e '	exon	' | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ch,$start,$end,$strand)=($f[0],$f[3],$f[4],$f[6]); $f=~/gene_id "([^"]+)"/; $g=$1; $h2{$g}->[0]=$start if(!$h2{$g}->[0] || $start < $h2{$g}->[0]); $h2{$g}->[1]=$end if(!$h2{$g}->[1] || $end > $h2{$g}->[1]); $h2{$g}->[2]=$ch; $h2{$g}->[3]=$strand; $len=($end-$start)+1; $f=~/transcript_id "([^"]+)"/; $t=$1; push(@{$h{$g}->{$t}}, $len); END { for $g (keys %h) { ($st,$en,$chrm,$str)=@{$h2{$g}}; $sum=0; $min=(2**32)-1; $max=0; $mine=(2**32)-1; $maxe=0; $counte=0; $count=0; map { $i=0; for $e (@{$h{$g}->{$_}}) { $i+=$e; $mine=$e if($e < $mine); $maxe=$e if($e > $maxe); $counte++; } $count++; $sum+=$i; $max=$i if($i > $max); $min=$i if($i < $min); } (keys %{$h{$g}}); $st--; printf("$chrm\t$st\t$en\t$g\t$count\t$str\t$sum\t$min\t$max\t%.3f\t$counte\t$mine\t$maxe\t%.3f\n",($sum/$count),($sum/$counte));}}' | sort -k1,1 -k2,2n -k3,3n > gencode.v28.basic.annotation.exons.stats.bed
