@@ -41,7 +41,7 @@ for f in `ls fl.${WIGGLE}.all.0/*.trans.names | cut -d'/' -f 2`; do
 done
 fgrep -f all.3.trans.names *.all.counts | perl -ne 'chomp; ($j,$n)=split(/:/,$_); ($n,$c)=split(/\s+/,$n); $h{$n}+=$c; END { for $n (keys %h) { print "$n\t".$h{$n}."\n"; }}' | sort -k2,2nr > all.3.trans.counts
 
-cat all.3.trans.counts | perl -ne 'BEGIN { open(IN,"<'${ANNOTATION}'"); %h; while($line=<IN>) { chomp($line); ($t,$c)=split(/\s+/,$line); $h{$t}=$c; } close(IN); } chomp; $f=$_; ($t,$c2)=split(/\t/,$f); $t=~s/\.[\+-]//; $c1=$h{$t}; $c3=$c2/$c1; print "$t\t$c3\n";' | sort -k2,2nr > all.3.trans.counts.normalized_by_exon_count
+cat all.3.trans.counts | perl -ne 'BEGIN { open(IN,"<'${ANNOTATION}'"); %h; while($line=<IN>) { chomp($line); ($t,$c)=split(/\s+/,$line); $h{$t}=$c; } close(IN); } chomp; $f=$_; ($t,$c2)=split(/\t/,$f); $t=~s/^([^\.]+\.\d+).*$/$1/; $c1=$h{$t}; $c3=$c2/$c1; print "$t\t$c3\n";' | sort -k2,2nr > all.3.trans.counts.normalized_by_exon_count
 
 echo "" > all.problem.names
 for i in $(seq 0 ${MAX_RUN_IDX}); do cat fl.${WIGGLE}.all.${i}/*.names | cut -d'_' -f 1 | cut -d'.' -f 1,2 >> all.problem.names ; done
