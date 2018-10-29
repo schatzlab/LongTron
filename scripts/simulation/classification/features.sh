@@ -37,16 +37,17 @@ SEGDUPS=$SOURCE_PATH/segmental_dups_hg38.sorted
 EXONS_PERBASE=$SOURCE_PATH/gencode.v28.basic.annotation.exons.perbase.counts.bgz
 TRANSCRIPTS_PERBASE=$SOURCE_PATH/gencode.v28.basic.annotation.transcripts.perbase.counts.bgz
 LOCAL_MAPPABILITY=$SOURCE_PATH/gv28.local_mappability.coords.bed
+LOCUS_STATS=$SOURCE_PATH/gencode.v28.basic.annotation.exons.stats.bed
 
 BAM=$1
 
 #convert long read alignment BAM into BED of features (# exons, exon length, intron length, min_exon, min_intron, mapping_quality)
 #TODO: re-enable this for production
-#samtools view -F 2308 $BAM | cut -f 1,2,3,4,5,6 | perl -ne 'BEGIN { $b=0; %chrms=("chr1"=>1,"chr2"=>1,"chr3"=>1,"chr4"=>1,"chr5"=>1,"chr6"=>1,"chr7"=>1,"chr8"=>1,"chr9"=>1,"chr10"=>1,"chr11"=>1,"chr12"=>1,"chr13"=>1,"chr14"=>1,"chr15"=>1,"chr16"=>1,"chr17"=>1,"chr18"=>1,"chr19"=>1,"chr20"=>1,"chr21"=>1,"chr22"=>1,"chrM"=>1,"chrX"=>1,"chrY"=>1); } chomp; ($name,$flag,$c,$s,$mapping_quality,$f)=split(/\t/,$_); next if(!$chrms{$c}); $start=$s-1; my $o = (int($flag) & 0x10)?"-":"+"; $nexons=1; $exon_length=0; $intron_length=0; $r=$start; $pr=$r; $min_exon_sz=2**31; $min_intron_sz=2**31; while($f=~/(\d+)([NMD=X])/cg) { $i=$1; $t=$2; if($t eq "N") { $nexons++; $el=$r-$pr; $il=$i; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=$il if($il < $min_intron_sz); $exon_length+=$el; $intron_length+=$il; $pr=$r+$i; } $r+=$i; } $el=$r-$pr; $exon_length+=$el; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=0 if($nexons == 1); print "".join("\t",($c,$start,$r,"r$b",0,$o,$name,$nexons,$exon_length,$intron_length,$min_exon_sz,$min_intron_sz,$mapping_quality))."\n"; $b++;' | sort -k1,1 -k2,2n -k3,3n > ${BAM}.bed.nX3.minX2.mq
+samtools view -F 2308 $BAM | cut -f 1,2,3,4,5,6,10 | perl -ne 'BEGIN { $b=0; %chrms=("chr1"=>1,"chr2"=>1,"chr3"=>1,"chr4"=>1,"chr5"=>1,"chr6"=>1,"chr7"=>1,"chr8"=>1,"chr9"=>1,"chr10"=>1,"chr11"=>1,"chr12"=>1,"chr13"=>1,"chr14"=>1,"chr15"=>1,"chr16"=>1,"chr17"=>1,"chr18"=>1,"chr19"=>1,"chr20"=>1,"chr21"=>1,"chr22"=>1,"chrM"=>1,"chrX"=>1,"chrY"=>1); } chomp; ($name,$flag,$c,$s,$mapping_quality,$f,$seq)=split(/\t/,$_); next if(!$chrms{$c}); $rl=length($seq); $start=$s-1; my $o = (int($flag) & 0x10)?"-":"+"; $nexons=1; $exon_length=0; $intron_length=0; $r=$start; $pr=$r; $min_exon_sz=2**31; $min_intron_sz=2**31; while($f=~/(\d+)([NMD=X])/cg) { $i=$1; $t=$2; if($t eq "N") { $nexons++; $el=$r-$pr; $il=$i; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=$il if($il < $min_intron_sz); $exon_length+=$el; $intron_length+=$il; $pr=$r+$i; } $r+=$i; } $el=$r-$pr; $exon_length+=$el; $min_exon_sz=$el if($el < $min_exon_sz); $min_intron_sz=0 if($nexons == 1); print "".join("\t",($c,$start,$r,"r$b",0,$o,$name,$rl,$nexons,$exon_length,$intron_length,$min_exon_sz,$min_intron_sz,$mapping_quality))."\n"; $b++;' | sort -k1,1 -k2,2n -k3,3n > ${BAM}.bed.rl.nX3.minX2.mq
 
-IN=${BAM}.bed.nX3.minX2.mq
+IN=${BAM}.bed.rl.nX3.minX2.mq
 
-OFFSET=13
+OFFSET=14
 
 ###RepeatMasker
 #overlap with RepeatMasker and then
@@ -91,3 +92,5 @@ $BT intersect -sorted -wao -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm -b $SE
 #TODO: check offset on this one (OFFSET+14)
 $BT intersect -sorted -s -wao -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2 -b ${LOCAL_MAPPABILITY} | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,('$OFFSET'+14)); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { for($i=0;$i<scalar(@new);$i++) { $new[$i]/=$c; } $new_fields = join("\t",@new); print "$p\t$new_fields\n"; } $p=$all; @new=(); $c=0; } $c++; $pt=$t; for($i=6;$i<scalar(@f)-1;$i++) { $new[$i-6]+=$f[$i]; }  END { if($pt) { for($i=0;$i<scalar(@new);$i++) { $new[$i]/=$c; } $new_fields = join("\t",@new); print "$p\t$new_fields\n"; } }' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4
 
+###Closest Locus transcript/exon stats (lengths, etc...), used at least for non-FL training/predictions
+$BT closest -s -t first -D ref -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4 -b ${LOCUS_STATS} |  perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,('$OFFSET'+19)); $all=join("\t",@f1); @f2=splice(@f,6); $all2=join("\t",@f2); print "$all\t".$f[4]."\t$all2\n";' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4.lsX9
