@@ -16,7 +16,7 @@ static const int CHRM_SIZE_COL=1;
 static const int START_COL=1;
 static const int END_COL=2;
 static const int VALUE_COL=3;
-static const int NUM_CHRM=25;
+static const int NUM_CHRM=1024;
 static const int BOTH_OPPOSITE_VAL=10;
 //1MB per line should be more than enough
 static const int LINE_BUFFER_LENGTH=1048576;
@@ -47,7 +47,7 @@ void split_string(std::string line, char delim, std::vector<std::string>* tokens
 
 int parse_chrm_idx(const char* chrm_id)
 {
-	assert(strncmp(chrm_id,"chr",3)==0);
+	assert(strncmp(chrm_id,"chr",3)==0 || strncmp(chrm_id,"Chr",3)==0);
 	int len = strlen(chrm_id);
 	assert(len <= 5);
 	//extract chrm ID as an integer
@@ -58,6 +58,7 @@ int parse_chrm_idx(const char* chrm_id)
 		case 'X': idx = 23; break;
 		case 'Y': idx = 24; break;
 		case 'M': idx = 25; break;
+		case 'C': idx = 26; break;
 		default:
 			  if(len < 5)
 				  //subtract ascii offset

@@ -3,11 +3,12 @@ set -o pipefail -o nounset -o errexit
 
 FILTER=~/filter_one_file_by_another.py
 
+#e.g. gencode.v28.basic.annotation.transcripts_exon_count
+ANNOTATION=$1
 #base-0, so 5 runs if this is 4
 #the following assumes that there are at least 3 runs
 MAX_RUN_IDX=4
 WIGGLE=20
-ANNOTATION=gencode.v28.basic.annotation.transcripts_exon_count
 JX_PREFIX='sim10.junctions.clean'
 
 #get recurrent transcripts per categoy across all runs
