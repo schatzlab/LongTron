@@ -79,7 +79,7 @@ cat ${IN}.rm.sr.snps.ot.gc.umap | $PERBASE -c $GENOME_SIZES -f <(zcat $EXONS_PER
 cat ${IN}.rm.sr.snps.ot.gc.umap.ed | $PERBASE -c $GENOME_SIZES -f <(zcat $TRANSCRIPTS_PERBASE) > ${IN}.rm.sr.snps.ot.gc.umap.ed.td
 
 ###Logs of nexons, exon bp, intron bp
-cat ${IN}.rm.sr.snps.ot.gc.umap.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[7],$f[8],$f[9]); $ibpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3
+cat ${IN}.rm.sr.snps.ot.gc.umap.ed.td | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ne,$ebp,$ibp)=($f[8],$f[9],$f[10]); $ibpl=($ibp>0?log($ibp):0); printf("%s\t%.3f\t%.3f\t%.3f\n",$f,log($ne),log($ebp),$ibpl);' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3
 
 ###SpliceMotif frequency
 #this is fixed now
@@ -93,4 +93,4 @@ $BT intersect -sorted -wao -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm -b $SE
 $BT intersect -sorted -s -wao -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2 -b ${LOCAL_MAPPABILITY} | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,('$OFFSET'+14)); $all=join("\t",@f1); $t=$f1[3]; if($t ne $pt) { if($pt) { for($i=0;$i<scalar(@new);$i++) { $new[$i]/=$c; } $new_fields = join("\t",@new); print "$p\t$new_fields\n"; } $p=$all; @new=(); $c=0; } $c++; $pt=$t; for($i=6;$i<scalar(@f)-1;$i++) { $new[$i-6]+=$f[$i]; }  END { if($pt) { for($i=0;$i<scalar(@new);$i++) { $new[$i]/=$c; } $new_fields = join("\t",@new); print "$p\t$new_fields\n"; } }' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4
 
 ###Closest Locus transcript/exon stats (lengths, etc...), used at least for non-FL training/predictions
-$BT closest -s -t first -D ref -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4 -b ${LOCUS_STATS} |  perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,('$OFFSET'+19)); $all=join("\t",@f1); @f2=splice(@f,6); $all2=join("\t",@f2); print "$all\t".$f[4]."\t$all2\n";' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4.lsX9
+$BT closest -s -t first -D ref -a ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4 -b ${LOCUS_STATS} |  perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); @f1=splice(@f,0,('$OFFSET'+19)); $all=join("\t",@f1); @f2=splice(@f,6); $all2=join("\t",@f2); print "$all\t".$f[4]."\t$all2\n";' > ${IN}.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4.lsX10
