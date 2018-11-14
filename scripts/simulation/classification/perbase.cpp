@@ -227,6 +227,8 @@ void go(std::string chrm_file, std::string perbase_file, int strand_col)
 		set_value<T>(cidx, start, end, strand, value, chrm_array, strand_col);
 		bytes_read = getline(&line, &length, fin);
 	}
+	if(pcidx != 0)
+		fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
 	std::cerr << "building genome wide value array done\n";
 	pcidx = 0;
 	//now read main file from STDIN line-by-line
@@ -249,6 +251,8 @@ void go(std::string chrm_file, std::string perbase_file, int strand_col)
 		//bytes_read = getline(&line, &length, fin1);
 		bytes_read = getline(&line, &length, stdin);
 	}
+	if(pcidx != 0)
+		fprintf(stderr,"MATCHING: chr idx %d done\n",pcidx);
 	std::cerr << "matching done\n";
 	delete line;
 	delete line_wo_nl;
