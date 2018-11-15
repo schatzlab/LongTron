@@ -1,10 +1,14 @@
 #!/bin/bash
-set -o pipefail -o nounset -o errexit 
+set -o pipefail -o errexit 
 
 FILTER=~/filter_one_file_by_another.py
 
 #e.g. gencode.v28.basic.annotation.transcripts_exon_count
 ANNOTATION=$1
+FIX_TRANSCRIPT_NAMES=0
+if [ -n "$2" ]; then
+	FIX_TRANSCRIPT_NAMES=$2
+fi
 #base-0, so 5 runs if this is 4
 #the following assumes that there are at least 3 runs
 MAX_RUN_IDX=4
@@ -42,7 +46,7 @@ for f in `ls fl.${WIGGLE}.all.0/*.trans.names | cut -d'/' -f 2`; do
 done
 fgrep -f all.3.trans.names *.all.counts | perl -ne 'chomp; ($j,$n)=split(/:/,$_); ($n,$c)=split(/\s+/,$n); $h{$n}+=$c; END { for $n (keys %h) { print "$n\t".$h{$n}."\n"; }}' | sort -k2,2nr > all.3.trans.counts
 
-cat all.3.trans.counts | perl -ne 'BEGIN { open(IN,"<'${ANNOTATION}'"); %h; while($line=<IN>) { chomp($line); ($t,$c)=split(/\s+/,$line); $h{$t}=$c; } close(IN); } chomp; $f=$_; ($t,$c2)=split(/\t/,$f); $t=~s/^([^\.]+\.\d+).*$/$1/; $c1=$h{$t}; $c3=$c2/$c1; print "$t\t$c3\n";' | sort -k2,2nr > all.3.trans.counts.normalized_by_exon_count
+cat all.3.trans.counts | perl -ne 'BEGIN { open(IN,"<'${ANNOTATION}'"); %h; while($line=<IN>) { chomp($line); ($t,$c)=split(/\s+/,$line); $h{$t}=$c; } close(IN); } chomp; $f=$_; ($t,$c2)=split(/\t/,$f); if('${FIX_TRANSCRIPT_NAMES}'==1) { $t=~s/^([^\.]+\.\d+).*$/$1/; } $c1=$h{$t}; $c3=$c2/$c1; print "$t\t$c3\n";' | sort -k2,2nr > all.3.trans.counts.normalized_by_exon_count
 
 echo "" > all.problem.names
 for i in $(seq 0 ${MAX_RUN_IDX}); do cat fl.${WIGGLE}.all.${i}/*.names | cut -d'_' -f 1 | cut -d'.' -f 1,2 >> all.problem.names ; done
