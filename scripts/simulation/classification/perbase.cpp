@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstdint>
 #include <fcntl.h>
+#include <map>
 
 static const int ASCII_OFFSET=48;
 static const int CHRM_COL=0;
@@ -23,6 +24,8 @@ static const int LINE_BUFFER_LENGTH=1048576;
 //For future use
 static int TEST_MODE = -1;
 static int SPLICE_MOTIF_MODE = 0;
+
+typedef std::map<std::string, int> chrm_map;
 
 template<typename T>
 T* build_array(long size)
@@ -70,20 +73,20 @@ int parse_chrm_idx(const char* chrm_id)
 }
 
 template<typename T>
-T** build_chromosome_array(std::string chrm_file)
+T** build_chromosome_array(std::string chrm_file, chrm_map* chrm_name2id)
 {
 	std::ifstream infile(chrm_file.c_str());
 	assert(infile);
 	std::string line;
 	T** chrm_array = new T*[NUM_CHRM+1];
 	std::vector<std::string> tokens;
+	int chrm_idx = 0;
 	while(getline(infile, line))
 	{
 		split_string(line, '\t', &tokens);
-		const char* chrm_id = tokens.at(CHRM_COL).c_str();
-		int idx = parse_chrm_idx(chrm_id);
 		long chrm_size = atol(tokens.at(CHRM_SIZE_COL).c_str());
-		chrm_array[idx] = build_array<T>(chrm_size);
+		chrm_array[chrm_idx] = build_array<T>(chrm_size);
+		chrm_name2id->emplace(tokens.at(CHRM_COL), chrm_idx++);
 	}
 	infile.close();
 	return chrm_array;
@@ -130,7 +133,7 @@ void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.3f\n", line
 
 //about 3x faster than the sstring/string::getline version
 template <typename T>
-T process_line(char* line, char* delim, int* cidx, long* start, long* end, char* strand, int value_col, int strand_col)
+T process_line(char* line, char* delim, int* cidx, long* start, long* end, char* strand, int value_col, int strand_col, chrm_map* chrm_name2id)
 {
 	char* line_copy = strdup(line);
 	char* tok = strtok(line_copy, delim);
@@ -147,7 +150,7 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end, char*
 		if(i == CHRM_COL)
 		{
 			chrm = strdup(tok);
-			*cidx = parse_chrm_idx(chrm);
+			*cidx = chrm_name2id->at(std::string(chrm));
 		}
 		if(i == START_COL)
 			*start = atol(tok);
@@ -200,9 +203,10 @@ double summarize_region(int* cidx, long* start, long* end, char* strand, T** chr
 template <typename T>
 void go(std::string chrm_file, std::string perbase_file, int strand_col)
 {
-	T** chrm_array = build_chromosome_array<T>(chrm_file);
+	chrm_map chrm_name2id;
+	T** chrm_array = build_chromosome_array<T>(chrm_file, &chrm_name2id);
 	int cidx;
-	int pcidx = 0;
+	int pcidx = -1;
 	long start, end;
 	T value;
 	char strand;
@@ -215,8 +219,8 @@ void go(std::string chrm_file, std::string perbase_file, int strand_col)
 	while(bytes_read != -1)
 	{
 		//assumes no header
-		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, VALUE_COL, strand_col);
-		if(cidx != pcidx && pcidx != 0)
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, VALUE_COL, strand_col, &chrm_name2id);
+		if(cidx != pcidx && pcidx != -1)
 		{
 			fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
 			//only do chr1 and 10 for testing
@@ -227,10 +231,10 @@ void go(std::string chrm_file, std::string perbase_file, int strand_col)
 		set_value<T>(cidx, start, end, strand, value, chrm_array, strand_col);
 		bytes_read = getline(&line, &length, fin);
 	}
-	if(pcidx != 0)
+	if(pcidx != -1)
 		fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
 	std::cerr << "building genome wide value array done\n";
-	pcidx = 0;
+	pcidx = -1;
 	//now read main file from STDIN line-by-line
 	//FILE* fin1 = fopen("q1", "r");
 	//bytes_read = getline(&line, &length, fin1);
@@ -242,8 +246,8 @@ void go(std::string chrm_file, std::string perbase_file, int strand_col)
 		memcpy(line_wo_nl, line, bytes_read-1);
 		line_wo_nl[bytes_read-1]='\0';
 		//assumes no header
-		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, -1, strand_col);
-		if(cidx != pcidx && pcidx != 0)
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, -1, strand_col, &chrm_name2id);
+		if(cidx != pcidx && pcidx != -1)
 			fprintf(stderr,"MATCHING: chr idx %d done\n",pcidx);
 		pcidx = cidx;
 		double summary = summarize_region<T>(&cidx, &start, &end, &strand, chrm_array, strand_col);
