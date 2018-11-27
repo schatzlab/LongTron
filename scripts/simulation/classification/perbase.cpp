@@ -133,7 +133,7 @@ void output_line(char* line, double summary) { fprintf(stdout,"%s\t%.3f\n", line
 
 //about 3x faster than the sstring/string::getline version
 template <typename T>
-T process_line(char* line, char* delim, int* cidx, long* start, long* end, char* strand, int value_col, int strand_col, chrm_map* chrm_name2id)
+T process_line(char* line, char* delim, int* cidx, long* start, long* end, char* strand, int value_col, int strand_col, chrm_map* chrm_name2id, int* err)
 {
 	char* line_copy = strdup(line);
 	char* tok = strtok(line_copy, delim);
@@ -150,7 +150,16 @@ T process_line(char* line, char* delim, int* cidx, long* start, long* end, char*
 		if(i == CHRM_COL)
 		{
 			chrm = strdup(tok);
-			*cidx = chrm_name2id->at(std::string(chrm));
+			try
+			{
+				*cidx = chrm_name2id->at(std::string(chrm));
+			}
+			catch (const std::out_of_range& ex)
+			{
+				fprintf(stderr,"WARNING: %s not found in chromosome sizes file, skipping line\n", chrm);
+				*err=1;
+				return 0;
+			}
 		}
 		if(i == START_COL)
 			*start = atol(tok);
@@ -216,19 +225,24 @@ void go(std::string chrm_file, std::string perbase_file, int strand_col)
 	FILE* fin = fopen(perbase_file.c_str(), "r");
 	assert(fin);
 	ssize_t bytes_read = getline(&line, &length, fin);
+	int err;
 	while(bytes_read != -1)
 	{
+		err = 0;
 		//assumes no header
-		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, VALUE_COL, strand_col, &chrm_name2id);
-		if(cidx != pcidx && pcidx != -1)
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, VALUE_COL, strand_col, &chrm_name2id, &err);
+		if(err == 0)
 		{
-			fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
-			//only do chr1 and 10 for testing
-			/*if(pcidx == 10)
-				break;*/
+			if(cidx != pcidx && pcidx != -1)
+			{
+				fprintf(stderr,"BUILDING: chr idx %d done\n",pcidx);
+				//only do chr1 and 10 for testing
+				/*if(pcidx == 10)
+					break;*/
+			}
+			pcidx = cidx;
+			set_value<T>(cidx, start, end, strand, value, chrm_array, strand_col);
 		}
-		pcidx = cidx;
-		set_value<T>(cidx, start, end, strand, value, chrm_array, strand_col);
 		bytes_read = getline(&line, &length, fin);
 	}
 	if(pcidx != -1)
@@ -245,13 +259,17 @@ void go(std::string chrm_file, std::string perbase_file, int strand_col)
 		//get rid of newline
 		memcpy(line_wo_nl, line, bytes_read-1);
 		line_wo_nl[bytes_read-1]='\0';
+		err = 0;
 		//assumes no header
-		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, -1, strand_col, &chrm_name2id);
-		if(cidx != pcidx && pcidx != -1)
-			fprintf(stderr,"MATCHING: chr idx %d done\n",pcidx);
-		pcidx = cidx;
-		double summary = summarize_region<T>(&cidx, &start, &end, &strand, chrm_array, strand_col);
-		output_line(line_wo_nl, summary);
+		T value = process_line<T>(strdup(line), "\t", &cidx, &start, &end, &strand, -1, strand_col, &chrm_name2id, &err);
+		if(err == 0)
+		{
+			if(cidx != pcidx && pcidx != -1)
+				fprintf(stderr,"MATCHING: chr idx %d done\n",pcidx);
+			pcidx = cidx;
+			double summary = summarize_region<T>(&cidx, &start, &end, &strand, chrm_array, strand_col);
+			output_line(line_wo_nl, summary);
+		}
 		//bytes_read = getline(&line, &length, fin1);
 		bytes_read = getline(&line, &length, stdin);
 	}
