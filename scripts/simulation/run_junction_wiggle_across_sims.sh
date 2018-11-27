@@ -15,3 +15,6 @@ for i in {0..4}; do cd ../fl.20.all.${i} && /bin/bash -x $scripts/junction_wiggl
 #now run the following
 /bin/bash -x $scripts/compare_matching.sh $transcript_exon_counts $fix_transcripts > compare_matching.sh.run 2>&1
 #then build features and use class2transcripts.tsv to map categories
+#/bin/bash -x {ORGANISM}_prep_features.sh
+#/bin/bash -x {ORGANISM}_features.sh ${BAM}
+#/bin/bash -x create_training_sets.sh 0.6 0.2 training.bam.bed.rl.nX3.minX2.mq.rm.ot.ed.td.logsX3.sm.gc.lsX10
