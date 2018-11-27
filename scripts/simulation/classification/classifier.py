@@ -6,7 +6,7 @@ from numpy import genfromtxt
 from sklearn.externals import joblib
 
 fname = sys.argv[1]
-#trans_sim10.fl.0.bam.bed.nX3.minX2.mq.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm
+#training.bam.bed.rl.nX3.minX2.mq.rm.ot.ed.td.logsX3.sm.gc.lsX10
 pos = fname.find('rl')
 fields_ = fname[pos:].split('.')
 fields = []
