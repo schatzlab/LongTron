@@ -1,5 +1,6 @@
 #!/bin/env python
 import sys
+import os
 import re
 from sklearn.ensemble import RandomForestClassifier
 from numpy import genfromtxt
@@ -36,9 +37,12 @@ yv = genfromtxt("validation.y",delimiter='\t')
 
 ybv = genfromtxt("binary.y.validation",delimiter='\t')
 
+if not os.path.exists('./trained_models'):
+    os.mkdir('./trained_models')
+
 crf = RandomForestClassifier(n_estimators=100, n_jobs=8)
 c = crf.fit(x,y)
-#joblib.dump(c,"%s.rfc_trained4" % (fname))
+joblib.dump(c,"./trained_models/%s.rfc_4_trained" % (fname))
 sys.stdout.write("validation: %s\n" % str(c.score(xv,yv)))
 sys.stdout.write("importance: ")
 #print c.feature_importances_
@@ -47,7 +51,7 @@ sys.stdout.write("\n")
 
 bcrf = RandomForestClassifier(n_estimators=100, n_jobs=8)
 bc = bcrf.fit(x,yb)
-#joblib.dump(bc,"%s.rfc_trained2" % (fname))
+joblib.dump(bc,"./trained_models/%s.rfc_2_trained" % (fname))
 sys.stdout.write("binary validation: %s\n" % str(bc.score(xv,ybv)))
 sys.stdout.write("importance: ")
 [sys.stdout.write(" %s:%s " % (fields[i],str(x_))) for (i,x_) in enumerate(bc.feature_importances_)]
