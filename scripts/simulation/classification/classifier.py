@@ -56,3 +56,6 @@ sys.stdout.write("binary validation: %s\n" % str(bc.score(xv,ybv)))
 sys.stdout.write("importance: ")
 [sys.stdout.write(" %s:%s " % (fields[i],str(x_))) for (i,x_) in enumerate(bc.feature_importances_)]
 sys.stdout.write("\n")
+
+os.symlink("./trained_models/%s.rfc_4_trained" % (fname),'./trained_models/short.rfc_4_trained')
+os.symlink("./trained_models/%s.rfc_2_trained" % (fname),'./trained_models/short.rfc_2_trained')

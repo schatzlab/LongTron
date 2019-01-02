@@ -7,7 +7,7 @@ from sklearn.externals import joblib
 from io import StringIO
 
 MAX_BUF=1000
-PROB_FUZZ=0.01
+PROB_FUZZ=0.02
 
 #previously trained model filename
 model_fname = sys.argv[1]
@@ -31,7 +31,7 @@ for line in sys.stdin:
                 equal='N'
                 for (k,v) in enumerate(y):
                     sys.stdout.write(str(v)+'\t')
-                    if y[0] == v or abs(y[0]-v) <= PROB_FUZZ:
+                    if k != 0 and (y[0] == v or abs(y[0]-v) <= PROB_FUZZ):
                         equal = 'Y'
                 sys.stdout.write(equal)
                 sys.stdout.write('\n')
@@ -50,7 +50,7 @@ if i > 0:
             equal='N'
             for (k,v) in enumerate(y):
                 sys.stdout.write(str(v)+'\t')
-                if y[0] == v or abs(y[0]-v) <= PROB_FUZZ:
+                if k != 0 and (y[0] == v or abs(y[0]-v) <= PROB_FUZZ):
                     equal = 'Y'
             sys.stdout.write(equal)
             sys.stdout.write('\n')
