@@ -28,11 +28,21 @@ for line in sys.stdin:
         if model_class_num == 5:
             xvy = c.predict_proba(feature_fields)
             for y in xvy.tolist():
-                equal='N'
+                class_ = 'F'
+                equal = 'N'
+                max_k = -1
+                max_ = 0.0
                 for (k,v) in enumerate(y):
                     sys.stdout.write(str(v)+'\t')
+                    if v > max_:
+                        max_ = v
+                        max_k = k
                     if k != 0 and (y[0] == v or abs(y[0]-v) <= PROB_FUZZ):
                         equal = 'Y'
+                if max_k != 0:
+                    equal = 'N'
+                    class_ = 'P'
+                sys.stdout.write(class_ + '\t')
                 sys.stdout.write(equal)
                 sys.stdout.write('\n')
         else:
@@ -47,11 +57,21 @@ if i > 0:
     if model_class_num == 5:
         xvy = c.predict_proba(feature_fields)
         for y in xvy.tolist():
-            equal='N'
+            class_ = 'F'
+            equal = 'N'
+            max_k = -1
+            max_ = 0.0
             for (k,v) in enumerate(y):
                 sys.stdout.write(str(v)+'\t')
+                if v > max_:
+                    max_ = v
+                    max_k = k
                 if k != 0 and (y[0] == v or abs(y[0]-v) <= PROB_FUZZ):
                     equal = 'Y'
+            if max_k != 0:
+                equal = 'N'
+                class_ = 'P'
+            sys.stdout.write(class_ + '\t')
             sys.stdout.write(equal)
             sys.stdout.write('\n')
     else:
