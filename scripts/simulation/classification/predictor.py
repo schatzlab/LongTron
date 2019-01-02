@@ -22,7 +22,10 @@ for line in sys.stdin:
     if i == MAX_BUF:
         feature_fields = genfromtxt(StringIO(buf.decode('utf-8')), delimiter='\t')
         xvy = c.predict(feature_fields)
-        [sys.stdout.write('\t'.join([str(int(z)) for z in y])+'\n') for y in xvy.tolist()]
+        if model_class_num == 4:
+            [sys.stdout.write('\t'.join([str(int(z)) for z in y])+'\n') for y in xvy.tolist()]
+        else:
+            [sys.stdout.write('\t'.join([str(int(y))])+'\n') for y in xvy.tolist()]
         i = 0
         buf = ""
     buf += line
@@ -30,6 +33,9 @@ for line in sys.stdin:
 if i > 0:
     feature_fields = genfromtxt(StringIO(buf.decode('utf-8')), delimiter='\t')
     xvy = c.predict(feature_fields)
-    [sys.stdout.write('\t'.join([str(int(z)) for z in y])+'\n') for y in xvy.tolist()]
+    if model_class_num == 4:
+        [sys.stdout.write('\t'.join([str(int(z)) for z in y])+'\n') for y in xvy.tolist()]
+    else:
+        [sys.stdout.write('\t'.join([str(int(y))])+'\n') for y in xvy.tolist()]
     
-sys.stdout.write("%d-class prediction finished\n" % (model_class_num))
+sys.stderr.write("%d-class prediction finished\n" % (model_class_num))
