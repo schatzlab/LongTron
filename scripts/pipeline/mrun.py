@@ -9,7 +9,9 @@ import glob
 from collections import defaultdict
 from operator import itemgetter
 
-SRA_DOWNLOAD_CMD='fastq-dump --split-3 --gzip -O'
+#SRA_DOWNLOAD_CMD='fastq-dump --split-3 --gzip -O'
+#just do singles
+SRA_DOWNLOAD_CMD='fastq-dump --gzip -O'
 #CURL_CMD = 'curl -O -J -L'
 CURL_DOWNLOAD_CMD = 'curl -L'
 PACBIO_MMAP_SETTINGS = '-ax splice -uf -C5'
@@ -109,6 +111,9 @@ def default_preprocess(args, cwd):
     files2 = sorted(glob.glob(os.path.join(cwd,'*2.fastq*')))
     if len(files1) == 0 and len(files2) == 0:
         files1 = sorted(glob.glob(os.path.join(cwd,'*.fastq*')))
+    if len(files1) == 0 and len(files2) > 0:
+        files1 = files2
+        files2 = []
     return([files1, files2, None])
 
 def tcga_preprocess(args, cwd):
@@ -254,7 +259,7 @@ def do_pipeline(args):
     if not args.force and os.path.exists(bam_fn):
         raise RuntimeError('BAM file "%s" exists' % bam_fn)
     try:
-        #run(aligner_cmd, 'aligner+sambamba view')
+        run(aligner_cmd, 'aligner+sambamba view')
         assert os.path.exists(bam_fn)
     except Exception as e:
         if not args.keep_intermediates and os.path.exists(download_dir):
@@ -269,7 +274,7 @@ def do_pipeline(args):
     #
     try:
         mkdir_quiet(temp_dir)
-        #run(sb_sort_cmd, 'sambamba sort')
+        run(sb_sort_cmd, 'sambamba sort')
         assert os.path.exists(sbam_fn)
     except Exception as e:
         if not args.keep_intermediates and os.path.exists(download_dir):
