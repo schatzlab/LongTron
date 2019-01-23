@@ -18,8 +18,22 @@ JX_PREFIX='sim10.junctions.clean'
 #get recurrent transcripts per categoy across all runs
 echo "" > w${WIGGLE}.refseq_genecode.all_categories.trans.names.all
 for f in `ls fl.${WIGGLE}.all.0/*.trans.names | cut -d'/' -f 2`; do
+	#need to trim transcript names first
+	if [ ! -f fl.${WIGGLE}.all.0/${f}.pre_trimming ]; then
+		cp fl.${WIGGLE}.all.0/${f} fl.${WIGGLE}.all.0/${f}.pre_trimming
+	fi
+	cat fl.${WIGGLE}.all.0/${f}.pre_trimming | perl -ne 'chomp; $t=$_; if('${FIX_TRANSCRIPT_NAMES}'==1 && $t !~ /PAR/) { $t=~s/^([^\.]+\.\d+).*$/$1/; } print "$t\n";' > fl.${WIGGLE}.all.0/${f}
+	if [ ! -f fl.${WIGGLE}.all.1/${f}.pre_trimming ]; then
+		cp fl.${WIGGLE}.all.1/${f} fl.${WIGGLE}.all.1/${f}.pre_trimming
+	fi
+	cat fl.${WIGGLE}.all.1/${f}.pre_trimming | perl -ne 'chomp; $t=$_; if('${FIX_TRANSCRIPT_NAMES}'==1 && $t !~ /PAR/) { $t=~s/^([^\.]+\.\d+).*$/$1/; } print "$t\n";' > fl.${WIGGLE}.all.1/${f}
+	#now start by comparing
 	comm -1 -2 fl.${WIGGLE}.all.0/$f fl.${WIGGLE}.all.1/$f > ${f}.all
 	for i in $(seq `expr ${MAX_RUN_IDX} - 2` ${MAX_RUN_IDX}); do
+		if [ ! -f fl.${WIGGLE}.all.${i}/${f}.pre_trimming ]; then
+			cp fl.${WIGGLE}.all.${i}/${f} fl.${WIGGLE}.all.${i}/${f}.pre_trimming
+		fi
+		cat fl.${WIGGLE}.all.${i}/${f}.pre_trimming | perl -ne 'chomp; $t=$_; if('${FIX_TRANSCRIPT_NAMES}'==1 && $t !~ /PAR/) { $t=~s/^([^\.]+\.\d+).*$/$1/; } print "$t\n";' > fl.${WIGGLE}.all.${i}/${f}
 		comm -1 -2 ${f}.all fl.${WIGGLE}.all.${i}/$f > ${f}.all.1
 		mv ${f}.all.1 ${f}.all
 	done
@@ -28,7 +42,8 @@ for f in `ls fl.${WIGGLE}.all.0/*.trans.names | cut -d'/' -f 2`; do
 	#get total for this category across all runs
 	wc -l fl.${WIGGLE}.all.?/${f} | egrep -v -e 'total' | perl -ne 'chomp; ($j,$n,$f)=split(/\s+/,$_); $s+=$n; $c++; END { $a=$s/$c; printf("'${f}': %.1f% (%u/%u)\n",100*('${e}'/$a),'${e}',$a); }'
 	f2=`perl -e '$f1="'${f}'"; $f1=~s/\.names/\.counts/; print "$f1\n";'`
-	fgrep -f ${f}.all fl.${WIGGLE}.all.?/$f2 | perl -ne 'chomp; ($f,$c,$n)=split(/\s+/,$_); $h{$n}+=$c; END { for $n (keys %h) { print "$n\t".$h{$n}."\n"; }}' | sort -k2,2nr > ${f}.all.counts
+	#fgrep -f ${f}.all fl.${WIGGLE}.all.?/$f2 | perl -ne 'chomp; ($f,$c,$n)=split(/\s+/,$_); if('${FIX_TRANSCRIPT_NAMES}'==1) { $n=~s/^([^\.]+\.\d+).*$/$1/; } $h{$n}+=$c; END { for $n (keys %h) { print "$n\t".$h{$n}."\n"; }}' | sort -k2,2nr > ${f}.all.counts
+	$FILTER -f ${f}.all -t fl.${WIGGLE}.all.?/$f2 -w -c 2 -p'\s+' | perl -ne 'chomp; ($f,$c,$n)=split(/\s+/,$_); if('${FIX_TRANSCRIPT_NAMES}'==1 && $n !~ /PAR/) { $n=~s/^([^\.]+\.\d+).*$/$1/; } $h{$n}+=$c; END { for $n (keys %h) { print "$n\t".$h{$n}."\n"; }}' | sort -k2,2nr > ${f}.all.counts
 done
 sort -u w${WIGGLE}.refseq_genecode.all_categories.trans.names.all > w${WIGGLE}.refseq_genecode.all_categories.trans.names.all.sorted
 
@@ -46,7 +61,7 @@ for f in `ls fl.${WIGGLE}.all.0/*.trans.names | cut -d'/' -f 2`; do
 done
 fgrep -f all.3.trans.names *.all.counts | perl -ne 'chomp; ($j,$n)=split(/:/,$_); ($n,$c)=split(/\s+/,$n); $h{$n}+=$c; END { for $n (keys %h) { print "$n\t".$h{$n}."\n"; }}' | sort -k2,2nr > all.3.trans.counts
 
-cat all.3.trans.counts | perl -ne 'BEGIN { open(IN,"<'${ANNOTATION}'"); %h; while($line=<IN>) { chomp($line); ($t,$c)=split(/\s+/,$line); $h{$t}=$c; } close(IN); } chomp; $f=$_; ($t,$c2)=split(/\t/,$f); if('${FIX_TRANSCRIPT_NAMES}'==1) { $t=~s/^([^\.]+\.\d+).*$/$1/; } $c1=$h{$t}; $c3=$c2/$c1; print "$t\t$c3\n";' | sort -k2,2nr > all.3.trans.counts.normalized_by_exon_count
+cat all.3.trans.counts | perl -ne 'BEGIN { open(IN,"<'${ANNOTATION}'"); %h; while($line=<IN>) { chomp($line); ($t,$c)=split(/\s+/,$line); $h{$t}=$c; } close(IN); } chomp; $f=$_; ($t,$c2)=split(/\t/,$f); if('${FIX_TRANSCRIPT_NAMES}'==1 && $t !~ /PAR/) { $t=~s/^([^\.]+\.\d+).*$/$1/; } $c1=$h{$t}; $c3=$c2/$c1; print "$t\t$c3\n";' | sort -k2,2nr > all.3.trans.counts.normalized_by_exon_count
 
 echo "" > all.problem.names
 for i in $(seq 0 ${MAX_RUN_IDX}); do cat fl.${WIGGLE}.all.${i}/*.names | cut -d'_' -f 1 | cut -d'.' -f 1,2 >> all.problem.names ; done
