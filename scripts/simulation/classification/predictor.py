@@ -18,7 +18,7 @@ model_class_num = int(sys.argv[2])
 real_model_class_num = model_class_num
 if model_class_num == 5:
     real_model_class_num = 4
-c = joblib.load('./trained_models/%s.rfc_%d_trained' % (model_fname, real_model_class_num))
+c = joblib.load('%s.rfc_%d_trained' % (model_fname, real_model_class_num))
 #buffer up a bunch of lines, then do the prediction
 buf = ""
 i = 0
