@@ -1,4 +1,6 @@
 #!/bin/env bash
+#takes in junctions from the separate runs (expects 5) of the transcript simulator (mapped simulated transcripts from an organism)
+#and produces training sets based on the 4 and 2 classes (problem-free, recurrent problems, non-recurrent problems, novel; problem-free, everything else)
 set -o pipefail -o nounset -o errexit 
 scripts=`perl -e '$f="'${0}'"; $f=~s/\/[^\/]+$/\//; print "$f\n";'`
 
