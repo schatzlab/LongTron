@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+#this pastes together the input features from the real data
+#with the RF class probabilities for both fl & nonfl ("5 class")
+#only use the probabilities from here on
+
+#e.g. SRR1163655.sorted.bam.bed.rl.nX3.minX2.mq.rm.sr.snps.ot.gc.umap.ed.td.logsX3.sm.sdX2.lmX4.lsX10
+#or features.full as a symlink to the above (input to the prediction)
 features_f=$1
 p='features.full.just_features'
 
