@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+set -o pipefail -o nounset -o errexit 
+#get this script's path
+p=`perl -e '@f=split("/","'$0'"); pop(@f); print "".join("/",@f)."\n";'`
 
 BIGBED=/data/kent_tools/bedToBigBed
 #CHROMSZ=/data/kent_tools/hg38.chrom.sizes
@@ -19,7 +22,7 @@ for f in problem-free non-recurrent recurrent novel; do
     col=`perl -e '%h=("problem-free"=>0,"non-recurrent"=>1,"recurrent"=>2,"novel"=>3); print "".($h{"'${f}'"}+'${starting_col}');'`
     cat ${f}.${base_type}.${suffix} | perl -ne 'BEGIN { $col='${col}'-1; $starting_col = '${starting_col}'-1; } chomp; $f=$_; @f=split(/\t/,$f); $max=0; $max_col=-1; for($i=$starting_col; $i<($starting_col+4); $i++) { if($f[$i] >= $max) { $max=$f[$i]; $max_col=$i; } } if($max_col == $col) { print "$f\n"; }' > ${f}.all.matches.joined
     cut -f 2 ${f}.all.matches.joined > ${f}.all.matches.joined.read_names
-    export LC_COLLATE=C && fgrep -f ${f}.all.matches.joined.read_names $BAM_BED_FILE | sort -k1,1 -k2,2n -k3,3n > ${f}.all.matches.joined.reads.bed
+    export LC_COLLATE=C && ${p}/filter_one_file_by_another.py -f ${f}.all.matches.joined.read_names -t $BAM_BED_FILE -w -c 3 | sort -k1,1 -k2,2n -k3,3n > ${f}.all.matches.joined.reads.bed
     ${BIGBED} ${f}.all.matches.joined.reads.bed $CHROMSZ ${f}.all.matches.joined.reads.bed.bb
 done
 wc -l *.joined > all.joined.info
