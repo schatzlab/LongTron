@@ -90,3 +90,28 @@ cat <(zcat ${ANNOT_VER}.forward_splice_motifs.all.tsv.bgz | perl -ne 'chomp; pri
 
 #get per-gene level stats about transcript and exon lengths/counts/sums/averages
 zcat gencode.v28.basic.annotation.gtf.gz | egrep -e '	exon	' | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); ($ch,$start,$end,$strand)=($f[0],$f[3],$f[4],$f[6]); $f=~/gene_id "([^"]+)"/; $g=$1; $h2{$g}->[0]=$start if(!$h2{$g}->[0] || $start < $h2{$g}->[0]); $h2{$g}->[1]=$end if(!$h2{$g}->[1] || $end > $h2{$g}->[1]); $h2{$g}->[2]=$ch; $h2{$g}->[3]=$strand; $len=($end-$start)+1; $f=~/transcript_id "([^"]+)"/; $t=$1; push(@{$h{$g}->{$t}}, $len); END { for $g (keys %h) { ($st,$en,$chrm,$str)=@{$h2{$g}}; $sum=0; $min=(2**32)-1; $max=0; $mine=(2**32)-1; $maxe=0; $counte=0; $count=0; map { $i=0; for $e (@{$h{$g}->{$_}}) { $i+=$e; $mine=$e if($e < $mine); $maxe=$e if($e > $maxe); $counte++; } $count++; $sum+=$i; $max=$i if($i > $max); $min=$i if($i < $min); } (keys %{$h{$g}}); $st--; printf("$chrm\t$st\t$en\t$g\t$count\t$str\t$sum\t$min\t$max\t%.3f\t$counte\t$mine\t$maxe\t%.3f\n",($sum/$count),($sum/$counte));}}' | sort -k1,1 -k2,2n -k3,3n > gencode.v28.basic.annotation.exons.stats.bed
+
+#####get 10mer local mappability
+#cat gencode.v28.basic.annotation.fa | perl -ne 'BEGIN { $K=10; %h=(); $seq=""; } chomp; $s=$_; if($s=~/^>(.+)$/) { $nname=$1; if($name) { $len=length($seq); for($i=0;$i<(($len-$K)+1);$i++) { $s1=substr($seq,$i,$K); $h{$s1}++;} print "$name\t".(scalar keys %h)."\n"; } %h=(); $name=$nname; $seq=""; next; } $seq.="$s"; END { if($name) { $len=length($seq); for($i=0;$i<(($len-$K)+1);$i++) { $s1=substr($seq,$i,$K); $h{$s1}++; } print "$name\t".(scalar keys %h)."\n"; }}' > gencode.v28.basic.annotation.fa.10mers
+
+#cat gencode.v28.basic.annotation.fa.10mers.sorted | perl -ne 'chomp; $f=$_; ($n,$c1,$c2)=split(/\t/,$f); $d=($c1-10)+1; if($d != $c2) { $num_non_unique=($d-$c2); printf("$f\t$num_non_unique\t%.3f\n",$num_non_unique/$c1); }' | fgrep -v "PAR_Y" > gencode.v28.basic.annotation.fa.10mers.transcripts_with_nonunique.nopar_sorted_by_pb
+
+##only do 10 mer local mappability on single exon genes
+#TODO: find code to generate single exons GTF
+gffread -w gencode.v28.basic.annotation.transcripts.single_exons.fa -g GRCh38_full_analysis_set_plus_decoy_hla.fa gencode.v28.basic.annotation.transcripts.single_exons
+
+#do full length (including intron bases) transcript kmer counts (takes ~ 38m on stingray)
+cat gencode.v28.basic.annotation.transcripts.single_exons.fa | perl -ne 'BEGIN { $K=10; %h=(); $seq=""; } chomp; $s=$_; if($s=~/^>([^\s]+)/) { $nname=$1; if($name) { $len=length($seq); for($i=0;$i<(($len-$K)+1);$i++) { $s1=substr($seq,$i,$K); $h{$s1}++;} print "$name\t$len\t".(scalar keys %h)."\n"; } %h=(); $name=$nname; $seq=""; next; } $seq.="$s"; END { if($name) { $len=length($seq); for($i=0;$i<(($len-$K)+1);$i++) { $s1=substr($seq,$i,$K); $h{$s1}++; } print "$name\t$len\t".(scalar keys %h)."\n"; }}' > gencode.v28.basic.annotation.transcripts.single_exons.fa.10mers
+
+cat gencode.v28.basic.annotation.transcripts.single_exons.fa.10mers | perl -ne 'chomp; $f=$_; ($n,$c1,$c2)=split(/\t/,$f); $d=($c1-10)+1; if($d != $c2) { $num_non_unique=($d-$c2); printf("$f\t$num_non_unique\t%.3f\n",$num_non_unique/$c1); }' | fgrep -v "PAR_Y" | sort -t'	' -k5,5nr > gencode.v28.basic.annotation.transcripts.single_exons.fa.10mers.transcripts_with_nonunique.nopar_sorted_by_pb
+
+#keep PAR_Y genes, print info for every transcript
+#cat gencode.v28.basic.annotation.transcripts.single_exons.fa.10mers | perl -ne 'chomp; $f=$_; ($n,$c1,$c2)=split(/\t/,$f); $d=($c1-10)+1; $num_non_unique=($d-$c2); printf("$f\t$num_non_unique\t%.3f\n",$num_non_unique/$c1);' | sort -t' ' -k5,5nr > gencode.v28.basic.annotation.transcripts.single_exons.fa.10mers.transcripts_with_nonunique.nopar_sorted_by_pb
+
+
+cut -f 1,4,5,7,9 gencode.v28.basic.annotation.transcripts | perl -ne 'chomp; ($c,$s,$e,$o,$info)=split(/\t/,$_); $s--; $info=~/transcript_id "([^"]+)"/; $tid=$1; print "$c\t$s\t$e\t$tid\t0\t$o\n";' > gencode.v28.basic.annotation.transcripts.bed
+
+#file format is: Transcript_id, transcript_bp_length, total number of unique kmers, number of non-unique kmers, ratio of non-unique kmers across transcript_bp_length
+ln -fs gencode.v28.basic.annotation.transcripts.single_exons.fa.10mers.transcripts_with_nonunique.nopar_sorted_by_pb gv28.local_mappability
+
+cat gencode.v28.basic.annotation.transcripts.bed | perl -ne 'BEGIN { open(IN,"<gv28.local_mappability"); while($line=<IN>) { chomp($line); @f=split(/\t/,$line); $n=shift(@f); $h{$n}=join("\t",@f); } close(IN); } chomp; $f=$_; ($c,$s,$e,$n)=split(/\t/,$f); print "$f\t".$h{$n}."\n";' > gv28.local_mappability.coords.bed
