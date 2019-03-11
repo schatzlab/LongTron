@@ -1,4 +1,8 @@
-all: perbase
+all: perbase pbt
+
+pbt: process_bedtools.cpp
+	g++ -O3 -Wno-write-strings -std=c++11 process_bedtools.cpp -o pbt
+	#g++ -g -Wno-write-strings -std=c++11 process_bedtools.cpp -o pbt
 
 perbase: perbase.cpp
 	g++ -O3 -Wno-write-strings -std=c++11 perbase.cpp -o perbase
