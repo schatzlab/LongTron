@@ -47,9 +47,7 @@ while(my $z=<STDIN>)
         my ($c,$s,$e,$o,$ct,$ids,$c2,$s2,$e2,$bps)=split(/\t/,$z);
         my $diff1 = abs($s2-$s);
         my $diff2 = abs($e-$e2);
-        #both start/end need to be within 20 bases of overlapping start/end
-        #and within the overlap (since we're running this with already widened windows)
-        #if($bps > 0 && ($diff1 < $W && $diff1 >= 0) && ($diff2 < $W && $diff2 >= 0))
+        #both start/end need to be within W bases of overlapping start/end
         if($bps > 0 && $diff1 < $W && $diff2 < $W)
         {
             $z = join("\t",($c,$s,$e)); 
@@ -64,8 +62,10 @@ while(my $z=<STDIN>)
         }
     }
 }
+#large_count will vary with the total number of matching recount jxs (it's not the total number of recount jxs)
 print STDERR "".($small_matches/$small_count)."\t".($matching/$large_count)."\t$small_matches\t$matching\t$small_count\t$large_count\n";
 my %h2;
+#assign counts to read/transcript IDs
 for my $a (keys %h) 
 { 
     my $c = $h{$a}->[3]; 
@@ -79,6 +79,8 @@ for my $a (keys %h)
         } 
     } 
 } 
+#now print count for each read/transcript ID
+#as well as ratio of splice matches to all splices in each TID
 for my $tid (keys %h2)
 {
     my $t_ratio = $h2{$tid}/$totals{$tid}; 
