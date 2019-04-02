@@ -23,7 +23,7 @@ static const int CHRM_SIZE_COL=1;
 static const int START_COL=1;
 static const int END_COL=2;
 //1MB per line should be more than enough
-static const int LINE_BUFFER_LENGTH=1048576;
+static const int LINE_BUFFER_LENGTH=20048576;
 //For future use
 static int TEST_MODE = -1;
 
