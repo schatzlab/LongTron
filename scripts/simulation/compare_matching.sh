@@ -16,7 +16,7 @@ WIGGLE=20
 JX_PREFIX='sim10.junctions.clean'
 
 #get recurrent transcripts per categoy across all runs
-echo "" > w${WIGGLE}.refseq_genecode.all_categories.trans.names.all
+echo -n "" > w${WIGGLE}.refseq_genecode.all_categories.trans.names.all
 for f in `ls fl.${WIGGLE}.all.0/*.trans.names | cut -d'/' -f 2`; do
 	#need to trim transcript names first
 	if [ ! -f fl.${WIGGLE}.all.0/${f}.pre_trimming ]; then
