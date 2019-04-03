@@ -43,7 +43,7 @@ void split_string(std::string line, char delim, std::vector<std::string>* tokens
 //about 3x faster than the sstring/string::getline version
 //bool matched = process_line<T>(strdup(line), "\t", start2_col, last_val_col, &npline, &num_chars, &err);
 //template <typename T>
-int process_line(char* line, char* delim, int start2_col, int last_val_col, char** npline, int* num_chars, int window)
+int process_line(char* line, char* delim, int start2_col, int last_val_col, char** npline, int* num_chars, char** cline, int* num_chars2, int window)
 {
 	char* line_copy = strdup(line);
 	char* tok = strtok(line_copy, delim);
@@ -55,7 +55,9 @@ int process_line(char* line, char* delim, int start2_col, int last_val_col, char
     uint64_t start2=0;
     uint64_t end2=0;
     (*num_chars) = 0;
+    (*num_chars2) = 0;
     int num_toks = 0;
+    int num_toks2 = 0;
 	while(tok != NULL)
 	{
 		if(i > last_val_col)
@@ -66,6 +68,13 @@ int process_line(char* line, char* delim, int start2_col, int last_val_col, char
         {
             num_toks++;
             (*num_chars) += strlen(tok);
+        }
+        //track length of line upto the end of the first set
+        //of coordinates, this is for the unique key
+        if(i <= END_COL)
+        {
+            num_toks2++;
+            (*num_chars2) += strlen(tok);
         }
 		if(i == START_COL)
 			start = atol(tok);
@@ -83,8 +92,11 @@ int process_line(char* line, char* delim, int start2_col, int last_val_col, char
 	}
     //add for number of delimiters
     (*num_chars) += (num_toks-1);
+    (*num_chars2) += (num_toks2-1);
     memcpy(*npline, line, *num_chars);
+    memcpy(*cline, line, *num_chars2);
     (*npline)[*num_chars]='\0';
+    (*cline)[*num_chars2]='\0';
 	if(line_copy)
 		free(line_copy);
 	if(line)
@@ -104,10 +116,14 @@ void go(int start2_col, int last_col, int window)
     uint64_t large_count = 0;
     uint64_t small_count = 0;
     uint64_t matching = 0;
-    uint64_t small_matches = 0;
+    //uint64_t small_matches = 0;
+    uint32_t small_matches = 0;
     char* pline = new char[LINE_BUFFER_LENGTH];
     char* npline = new char[LINE_BUFFER_LENGTH];
+    char* pcline = new char[LINE_BUFFER_LENGTH];
+    char* cline = new char[LINE_BUFFER_LENGTH];
     int num_chars = 0;
+    int num_chars2 = 0;
     coords2matching matches; 
     int at_least_one_match = 0;
 
@@ -117,34 +133,38 @@ void go(int start2_col, int last_col, int window)
     //FILE* fin1 = fopen("q1", "r");
 	//ssize_t bytes_read = getline(&line, &length, fin1);
 	ssize_t bytes_read = getline(&line, &length, stdin);
+    bool new_line = false;
 	while(bytes_read != -1)
 	{
 		//get rid of newline
 		memcpy(line_wo_nl, line, bytes_read-1);
 		line_wo_nl[bytes_read-1]='\0';
 		//assumes no header
-		bool matched = process_line(strdup(line), "\t", start2_col, last_col, &npline, &num_chars, window);
-        if(large_count > 0 && strcmp(pline, npline) != 0)
+		bool matched = process_line(strdup(line), "\t", start2_col, last_col, &npline, &num_chars, &cline, &num_chars2, window);
+        new_line = false;
+        //match on just coordinates
+        if(large_count > 0 && strcmp(pcline, cline) != 0)
         {
             small_count++;
             fprintf(stdout, "%s\t%d\n", pline, at_least_one_match);
             at_least_one_match = 0;
-            memcpy(pline, npline, num_chars);
-            pline[num_chars]='\0';
+            new_line = true;
         }
-        if(large_count == 0)
+        if(large_count == 0 || new_line)
         {
             memcpy(pline, npline, num_chars);
             pline[num_chars]='\0';
+            memcpy(pcline, cline, num_chars2);
+            pcline[num_chars2]='\0';
         }
         large_count++;
         if(matched)
         {
             at_least_one_match = 1;
-            if(matches.find(npline) == matches.end())
-                small_matches++;
+            //if(matches.find(cline) == matches.end())
+            //    small_matches++;
             matching++;
-            matches[npline] = true;
+            matches[cline] = true;
         }
 		//bytes_read = getline(&line, &length, fin1);
 		bytes_read = getline(&line, &length, stdin);
@@ -154,9 +174,12 @@ void go(int start2_col, int last_col, int window)
         small_count++;
         fprintf(stdout, "%s\t%d\n", pline, at_least_one_match);
     }
-    fprintf(stderr,"%.3f\t%.3f\t%lu\t%lu\t%lu\t%lu\n",((double)small_matches/small_count),((double)matching/large_count),small_matches,matching,small_count,large_count);
+    small_matches = matches.size();
+    fprintf(stderr,"%.3f\t%.3f\t%u\t%lu\t%lu\t%lu\n",((double)small_matches/small_count),((double)matching/large_count),small_matches,matching,small_count,large_count);
     delete pline;
     delete npline;
+    delete pcline;
+    delete cline;
 	delete line;
 	delete line_wo_nl;
 }

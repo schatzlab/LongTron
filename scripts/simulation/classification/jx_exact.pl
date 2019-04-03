@@ -23,8 +23,8 @@ while(my $f=<IN>)
     $h{$k}=\@f;
     $h{$k}->[3]=0;
     $h{$k}->[4]=0;
-    $small_count++;
 } 
+$small_count = scalar keys %h;
 close(IN);
 my $matching=0; 
 #read snaptron/annotation
@@ -33,9 +33,9 @@ while(my $z=<STDIN>)
     chomp($z); 
     my ($c,$s,$e,$o,$a)=split(/\t/,$z);
     my $k = join("\t",($c,$s,$e)); 
-    #print "coord\t$z\t".join("\t",@{$h{$z}})."\n"; 
     if($h{$k})
     {
+        print STDERR "$z\t".join("\t",@{$h{$k}})."\n"; 
         $h{$k}->[3] += 1;
         $h{$k}->[4] = 1 if($a != 0);
     }
@@ -62,7 +62,8 @@ for my $k (keys %h)
 my $novel = $small_count - $matching;
 my $snaptron_unannotated = $matching - $num_annotated;
 #printf("%.2f\t%d\t%d\t%.2f\t%d\t%d\t%.2f\t%d\t%d\n",($novel/$small_count),$novel,$small_count,($num_annotated/$small_count),$num_annotated,$small_count,($snaptron_unannotated/$small_count),$snaptron_unannotated,$small_count);
-printf("%d (100\%)\t%d (%.0f\%)\t%d (%.0f\%)\t%d (%.0f\%)\n",$small_count,$num_annotated,100*($num_annotated/$small_count),$matching,100*($matching/$small_count),$novel,100*($novel/$small_count));
+#print "$small_count,$num_annotated,$snaptron_unannotated,$novel\n";
+printf("%d (100)\t%d (%.0f)\t%d (%.0f)\t%d (%.0f)\n",$small_count,$num_annotated,100*($num_annotated/$small_count),$matching,100*($matching/$small_count),$novel,100*($novel/$small_count));
 
 #now print count for each read/transcript ID
 #as well as ratio of splice matches to all splices in each TID
