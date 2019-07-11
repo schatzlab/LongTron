@@ -38,13 +38,15 @@ do
 	v=`perl -e '$total='${size}'; $frac='${nvalidation}'; $size=int($frac*$total); print "$size\n";'`
 	#need to add +1 to the original training size so we can start on the next line
 	t2=`perl -e '$total='${size}'; $frac='${ntraining}'; $size=int($frac*$total)+1; print "$size\n";'`
-	tail -n+${t2} features.x.${f} | head -${v} >> validation.x	
-	head -${v} features.y.${f} >> validation.y
+	tail -n+${t2} features.x.${f} | head -${v} >> validation.x
+	tail -n+${t2} features.y.${f} | head -${v} >> validation.y
+	#head -${v} features.y.${f} >> validation.y
 
 	#finally testing
 	vt=`perl -e '$total='${size}'; $t='${t}'; $v='${v}'; $size=$total-($t+$v); print "$size\n";'`
 	tail -n ${vt} features.x.${f} >> testing.x
-	head -${v} features.y.${f} >> testing.y
+	#head -${v} features.y.${f} >> testing.y
+	tail -n ${vt} features.y.${f} >> testing.y
 done
 
 #now do a balanced version of the training set
