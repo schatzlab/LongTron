@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -o pipefail -o nounset -o errexit 
 
 BT=/data/bedtools2/bin/bedtools
