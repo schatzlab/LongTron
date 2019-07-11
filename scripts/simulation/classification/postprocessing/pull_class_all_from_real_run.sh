@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 fl_training_examples_file=$1
-nonfl_training_examples_file=$1
+#nonfl_training_examples_file=$1
+nonfl_training_examples_file=$2
 
 #this function keeps all the predictions where the predicted class (from the probabilities outut from the RF "5 class")
 #matches the trained class
