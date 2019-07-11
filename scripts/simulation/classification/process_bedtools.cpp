@@ -145,11 +145,14 @@ void go(int start2_col, int last_col, int window)
         //match on just coordinates
         if(large_count > 0 && strcmp(pcline, cline) != 0)
         {
+            //multiple line (same set of coordinates) match
             small_count++;
             fprintf(stdout, "%s\t%d\n", pline, at_least_one_match);
+            //reset for next group
             at_least_one_match = 0;
             new_line = true;
         }
+        //setup for next (or first) group of same coordinates
         if(large_count == 0 || new_line)
         {
             memcpy(pline, npline, num_chars);
@@ -157,24 +160,29 @@ void go(int start2_col, int last_col, int window)
             memcpy(pcline, cline, num_chars2);
             pcline[num_chars2]='\0';
         }
+        //track every individual line
         large_count++;
         if(matched)
         {
             at_least_one_match = 1;
             //if(matches.find(cline) == matches.end())
             //    small_matches++;
+            //count every individual line if it matches
             matching++;
             matches[cline] = true;
         }
 		//bytes_read = getline(&line, &length, fin1);
 		bytes_read = getline(&line, &length, stdin);
 	}
+    //pick up final group count
     if(large_count > 0)
     {
         small_count++;
         fprintf(stdout, "%s\t%d\n", pline, at_least_one_match);
     }
+    //unique coordinate (left) matches
     small_matches = matches.size();
+    //group matches = small_matches/small_count, includes duplicate (within group) matches=matching/large_count
     fprintf(stderr,"%.3f\t%.3f\t%u\t%lu\t%lu\t%lu\n",((double)small_matches/small_count),((double)matching/large_count),small_matches,matching,small_count,large_count);
     delete pline;
     delete npline;
