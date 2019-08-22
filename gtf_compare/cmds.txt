@@ -1,0 +1,31 @@
+/software/centos7/bin/time -v ./gcom -r G029.gtf -R na12878.gtf > na12878.gtf_vs_G029.gtf.out 2>na12878.gtf_vs_G029.gtf.err
+
+/software/centos7/bin/time -v ./gcom -r G029.gtf na12878.gtf > na12878.gtf_vs_G029.gtf.out 2>na12878.gtf_vs_G029.gtf.err2
+
+find . -name "*.stats" | perl -ne 'chomp; $f=$_; ($j,$c)=split(/\//,$f); $cmd=`grep "gcom" $f`; $cmd=~s/^#//; chomp($cmd); $cmd=~/([^\s]+\.gtf).+ ([^\s]+\.gtf)/; $f1=$1; $f2=$2; print "./run_gcom.sh $c $f1 $f2\n";' > ../gtf_comparison.jobs
+cat all | perl -ne 'chomp; $f=$_; ($j,$p,$j2)=split(/\//,$f); $s=`fgrep "Intron chain level" $f | cut -d"|" -f 3`; chomp($s); print "$p\t$s\n";' > all.sensitivity
+
+cat all.fprecision | perl -ne 'chomp; $z=$_; $z=~s/ +//g; ($n,$c)=split(/\t/,$z); ($d,$t,$v,$comp)=split(/_/,$n); $d=uc($d); $t=uc($t); $comp=uc($comp); $comp=~s/RAW//; $comp="ALL_ANNOT" if($comp eq "ALL"); $k1=$t; $k2=$comp; if($d eq "SKBR3") {  $k1=$d."_".$t; if($comp ne "ALL_ANNOT" && $comp ne "G029") { $k2=$d."_".$comp; }} $h{$k1}->{$k2}=$c; $h2{$k2}=1; END { $i=0; print "Sample"; map { print "\t$_"; } sort keys %h2; print "\n"; for $k (sort keys %h) { $i++; print $k; for $k2 (sort keys %h2) { print "\t".$h{$k}->{$k2}; } print "\n"; }}' > all.fprecision.tsv
+
+cat all.sensitivity | perl -ne 'chomp; $z=$_; $z=~s/Intron chain level://; $z=~s/ +//g; ($n,$c)=split(/\t/,$z); ($d,$t,$v,$comp)=split(/_/,$n); $d=uc($d); $t=uc($t); $comp=uc($comp); $comp=~s/RAW//; $comp="ALL_ANNOT" if($comp eq "ALL"); $k1=$t; $k2=$comp; if($d eq "SKBR3") {  $k1=$d."_".$t; if($comp ne "ALL_ANNOT" && $comp ne "G029") { $k2=$d."_".$comp; }} $h{$k1}->{$k2}=$c; $h2{$k2}=1; END { $i=0; print "Sample"; map { print "\t$_"; } sort keys %h2; print "\n"; for $k (sort keys %h) { $i++; print $k; for $k2 (sort keys %h2) { print "\t".$h{$k}->{$k2}; } print "\n"; }}' > all.sensitivity.tsv
+
+
+#do a manual check of the intron chains
+fgrep "	exon	" pacbio_na12878.gtf | perl -ne 'chomp; $f=$_; @f=split(/\t/,$f); $f[8]=~/transcript_id "([^"]+)/; $tid=$1; $f[6]=$tid; print "".join("\t",@f)."\n";' | sort -t'	' -k7,7 -k1,1 -k4,4n -k5,5n > pacbio_na12878.gtf.exons.sorted_by_tid
+
+/software/centos7/bin/time -v cat oxford_na12878.gtf.exons.sorted_by_tid.filtered | perl ../../compare_intron_chains_manually.pl pacbio_na12878.gtf.exons.sorted_by_tid > oxfiltered_vs_pb.exact.manual2 2> errs2
+
+fgrep "    exon    " pacbio_na12878.gtf | cut -d' ' -f 4 | sort | uniq -c > pacbio_na12878.gtf.exon_count
+
+cat tmaps | perl -ne 'chomp; print "cut -f 3 $_ | sort | uniq -c > $_.counts\n";' > tmaps.jobs
+cat tmaps | perl -ne 'chomp; print "cut -f 5 $_ | sort -u | tee $_.qids | wc -l > $_.num_q\n";' > tmaps.numq.jobs
+
+cat gffcmp.oxford_na12878.gtf.tmap.counts | perl -ne 'BEGIN { %m=("="=>"full_match","c"=>"match_in_cref","k"=>"match_in_kquery","p"=>"no_overlap","r"=>"no_overlap","u"=>"no_overlap"); } chomp; $f=$_; ($j,$cnt,$t)=split(/\s+/,$f); next if($t =~ /class_code/); $total+=$cnt; $category=($m{$t}?$m{$t}:"mismatching_overlap"); $h{$category}+=$cnt; END { @keys=sort { $a cmp $b } keys %h; print "$total\n"; print "".join(",",@keys)."\n"; print "".join(",",(map { $h{$_}; } @keys))."\n"; print "".join(",",(map { $v=$h{$_}; sprintf("%.1f\%",100*($v/$total)); } @keys))."\n";  }' > gffcmp.oxford_na12878.gtf.tmap.counts.summarized
+[cwilks3@jhu.edu@langmead-bigmem na12878_ox_vs_pb]$ cat gffcmp.oxford_na12878.gtf.tmap.counts.summarized
+
+
+ls ../fuzz20_using_a_post_check | fgrep -v "_vs_" | perl -ne 'chomp; `ln -s ../fuzz20_using_a_post_check/$_`;
+
+~10m run for a full comparison, 9GBs max memory
+/software/centos7/bin/time -v parallel -j 30 < gtf_comparison.full.jobs > gtf_comparison.full.jobs.run 2>&1 &
+
