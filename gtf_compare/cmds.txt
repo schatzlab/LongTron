@@ -29,3 +29,4 @@ ls ../fuzz20_using_a_post_check | fgrep -v "_vs_" | perl -ne 'chomp; `ln -s ../f
 ~10m run for a full comparison, 9GBs max memory
 /software/centos7/bin/time -v parallel -j 30 < gtf_comparison.full.jobs > gtf_comparison.full.jobs.run 2>&1 &
 
+paste <(cut -d' ' -f 1,2,3 full_tmap_matching_fuzz0.tsv.sorted) <(cut -d' ' -f 3 full_tmap_matching_fuzz20.tsv.sorted) <(cut -d' ' -f 4 full_tmap_matching_fuzz0.tsv.sorted) <(cut -d' ' -f 4 full_tmap_matching_fuzz20.tsv.sorted) > full_tmap_matching_both.tsv.sorted.pasted

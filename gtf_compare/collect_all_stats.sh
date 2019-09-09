@@ -8,3 +8,5 @@ find $compare_dir -name "*.tmap" > ${comparison}.all_tmaps
 echo -n "" > ${comparison}.tsv
 for f in `cat ${comparison}.all_tmaps`; do /bin/bash ./make_isoform_comparison_table.sh $f >> ${comparison}.tsv ; done
 sort -k1,1 ${comparison}.tsv > ${comparison}.sorted.tsv
+
+paste <(cut -d' ' -f 1,2,3 ${comparison}.sorted.tsv) <(cut -d' ' -f 3 ${comparison}.sorted.tsv) <(cut -d' ' -f 4 ${comparison}.sorted.tsv) <(cut -d' ' -f 4 ${comparison}.sorted.tsv) > ${comparison}.sorted.pasted.tsv
