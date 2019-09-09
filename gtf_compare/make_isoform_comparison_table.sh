@@ -2,22 +2,25 @@
 #/path/to/<comparison>.tmap file
 tmap=$1
 
-cut -f 3 $tmap | sort | uniq -c > ${tmap}.counts
+cut -f 2,3,5,6 $tmap | egrep -v -e '	1$' > ${tmap}.multi
+cut -f 2 ${tmap}.multi | sort | uniq -c > ${tmap}.counts
+
 #only want 1) multi-exon 2) full matching "=", contains matching ("c" for contained *in* ref, and "k" for contained in query)
-cut -f 2,3,5,6 $tmap | fgrep "	=	" | egrep -v -e '	1$' > ${tmap}.exact.multi
+fgrep "	=	" ${tmap}.multi > ${tmap}.exact.multi
 #query is contained in ref
-cut -f 2,3,5,6 $tmap | fgrep "	c	" | egrep -v -e '	1$' > ${tmap}.contained.multi
+fgrep "	c	" ${tmap}.multi > ${tmap}.contained.multi
 #query contains ref
-cut -f 2,3,5,6 $tmap | fgrep "	k	" | egrep -v -e '	1$' > ${tmap}.contains.multi
+fgrep "	k	" ${tmap}.multi > ${tmap}.contains.multi
 
 #now get intergenic, completely novel multi-exon queries
-cut -f 2,3,5,6 $tmap | fgrep "	u	" | egrep -v -e '	1$' > ${tmap}.novel.multi
-cut -f 2,3,5,6 $tmap | fgrep "	p	" | egrep -v -e '	1$' >> ${tmap}.novel.multi
+fgrep "	u	" ${tmap}.multi > ${tmap}.novel.multi
+fgrep "	p	" ${tmap}.multi >> ${tmap}.novel.multi
 
 #repeat regions
-cut -f 2,3,5,6 $tmap | fgrep "	r	" | egrep -v -e '	1$' > ${tmap}.repeats.multi
+fgrep "	r	" ${tmap}.multi > ${tmap}.repeats.multi
 
-total_q=`cut -f 5 $tmap | tail -n+2 | sort -u | wc -l | cut -d' ' -f 1`
+#get total count of all *multi-exon* query isofrags
+total_q=`cut -f 3 ${tmap}.multi | tail -n+2 | sort -u | wc -l | cut -d' ' -f 1`
 matching_q=`cut -f 3 ${tmap}.exact.multi | sort -u | wc -l | cut -d' ' -f 1`
 contained_q=`cut -f 3 ${tmap}.contained.multi | sort -u | wc -l | cut -d' ' -f 1`
 contains_q=`cut -f 3 ${tmap}.contains.multi | sort -u | wc -l | cut -d' ' -f 1`
