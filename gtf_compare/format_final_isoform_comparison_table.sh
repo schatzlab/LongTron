@@ -13,3 +13,4 @@ paste <(cut -d' ' -f 1,2,3 ${exact}.sorted.tsv) <(cut -d' ' -f 3 ${fuzz}.sorted.
 # total_#multi_exonic_qisofrags        fuzz0_pct        fuzz20_pct        fuzz0_abs        fuzz20_abs
 #(all_matching_contained_contains	all_matching  contained   contains    non_matching_overlaps   novel   repeats)
 perl format_isoform_comparison_table.pl both.sorted.pasted.tsv  > both.sorted.pasted.formatted.tsv
+egrep -e '_(all)|(G029)' both.sorted.pasted.tsv | cut -f 1-2 | perl -ne '$f=$_; $f=~s/,[^\s]+([\s]+)/$1/g; print "$f";' > a1
