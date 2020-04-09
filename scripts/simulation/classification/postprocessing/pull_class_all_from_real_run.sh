@@ -11,6 +11,9 @@ function find_matches_all  {
     t=$3
     pos=`perl -e '%h=("problem-free"=>0,"non-recurrent"=>1,"recurrent"=>2,"novel"=>3); print "".($h{"'${f}'"}+'${start_pos}');'`
     echo "start_pos $start_pos f $f pos $pos"
+    #filter first by whether the training category "class" (last column) matches what the current class we're compiling for (bash $f)
+    #then if the training class (last column) matches the max prob. predicted class, then we assign a match ($m tracks this)
+    #$c tracks the total number of training class assignments with predictions, whether those predictions are correct or not
     zcat all.${t}.overlaps.bgz | perl -ne 'BEGIN { $start='${start_pos}'-1; $pos='${pos}'-1; } chomp; $f=$_; @f=split(/\t/,$f); $class=pop(@f); next if($class ne "'${f}'"); $c++; $max=0; $max_k=-1; for($i=$start;$i<($start+4);$i++) { if($f[$i] > $max) { $max=$f[$i]; $max_k=$i; } } if($max_k == $pos) { print "$f\n"; $m++;} END { $a=$m/$c; print STDERR "'${f}'\t'${t}'\ttotal:$c\tmatches:$m\tratio:$a\n"; }' 2> ${f}.${t}.all.matches.info | sort -k${pos},${pos}nr > ${f}.${t}.all.matches
 }
 
