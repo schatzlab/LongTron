@@ -23,9 +23,7 @@ nonfl_training_features=$3
 
 #get predictions' recall & precision
 #input prefixes to the 2 files, fl & nonfl, from the training extraction
-/bin/bash -x pull_class_all_from_real_run.sh fl.all_classes nonfl.all_classes
-cat *.all.matches.info > all.recall.info
-/bin/bash -x pull_class_all_from_real_run.precision.sh all.recall.info
+/bin/bash -x pull_class_all_from_real_run.sh fl.all_classes.all.bed.sorted nonfl.all_classes.all.bed.sorted
 
 #find agreement between fl & nonfl matched predictions (which agree with the training classes)
 #use fl as the base set (more strict)
