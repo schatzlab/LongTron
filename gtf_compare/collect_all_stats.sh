@@ -13,4 +13,6 @@ fgrep "flipped" ${comparison}.tsv | sed -e 's/\.flipped//' > flipped
 cut -d' ' -f 1 flipped > flipped.names
 cat flipped <(fgrep -v -f flipped.names ${comparison}.tsv) | sort -k1,1 > ${comparison}.sorted.tsv
 
-#paste <(cut -d' ' -f 1,2,3 ${comparison}.sorted.tsv) <(cut -d' ' -f 3 ${comparison}.sorted.tsv) <(cut -d' ' -f 4 ${comparison}.sorted.tsv) <(cut -d' ' -f 4 ${comparison}.sorted.tsv) > ${comparison}.sorted.pasted.tsv
+#comparison2=`perl -e '$c="'$comparison'"; if($c =~ fuzz20) { $c=~s/fuzz20/fuzz0/; } else { $c=~s/fuzz0/fuzz20/; } print "$c";'`
+
+#paste <(cut -d' ' -f 1,2,3 ${comparison}.sorted.tsv) <(cut -d' ' -f 3 ${comparison2}.sorted.tsv) <(cut -d' ' -f 4 ${comparison}.sorted.tsv) <(cut -d' ' -f 4 ${comparison2}.sorted.tsv) > ${comparison}.both.sorted.pasted.tsv
