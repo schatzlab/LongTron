@@ -10,7 +10,7 @@ cd $dir
 ln -fs ../${gtf1}
 ln -fs ../${gtf2}
 ../gcom -r $gtf1 --fuzz-length 0 $gtf2 > run 2>&1
-/bin/bash -x ../../make_isoform_comparison_table.sh gffcmp.${gtf2}.tmap > comparison.tsv
+/bin/bash -x ../make_isoform_comparison_table.sh gffcmp.${gtf2}.tmap > comparison.tsv
 #if pacbio NA12878 flip the strands of those transcripts which ended up in O/S categories
 FLIP_STRAND=`echo $dir | perl -ne '$n=$_; chomp($n); if($n=~/pb/) { print "1"; } else { print "0"; }'`
 if [[ "$FLIP_STRAND" == "1" ]]; then
@@ -22,6 +22,6 @@ if [[ "$FLIP_STRAND" == "1" ]]; then
     ln -fs ../${dir}/${gtf2}.o_s_strand_flipped
     #now re-run with flipped strands
     ../gcom -r $gtf1 --fuzz-length 0 ${gtf2}.o_s_strand_flipped > run 2>&1
-    /bin/bash -x ../../make_isoform_comparison_table.sh gffcmp.${gtf2}.o_s_strand_flipped.tmap > comparison.tsv
+    /bin/bash -x ../make_isoform_comparison_table.sh gffcmp.${gtf2}.o_s_strand_flipped.tmap > comparison.tsv
 fi
 cd ../
